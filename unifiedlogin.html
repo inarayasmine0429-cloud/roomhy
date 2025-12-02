@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RoomHy - Unified Login</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="seeder.js"></script>
+    <style>
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #1F2937;
+            min-height: 100vh;
+        }
+        .card-light { 
+            background: #FFFFFF; 
+            border-radius: 16px; 
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            border: 1px solid #e5e7eb;
+        }
+        .fade-in { animation: fadeIn 0.5s ease-in-out; }
+        @keyframes fadeIn { 
+            from { opacity: 0; transform: translateY(10px); } 
+            to { opacity: 1; transform: translateY(0); } 
+        }
+        .btn-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .btn-primary:hover { background: linear-gradient(135deg, #5568d3 0%, #6a3f91 100%); }
+        .input-focus:focus { box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1); }
+        .error-msg { color: #dc2626; font-size: 0.875rem; margin-top: 0.5rem; }
+    </style>
+</head>
+<body class="flex items-center justify-center p-4">
+
+    <div class="card-light w-full max-w-md p-8">
+        <div class="text-center mb-8">
+            <div class="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-purple-500 to-purple-700 rounded-lg mb-4">
+                <i data-lucide="building-2" class="w-8 h-8 text-white"></i>
+            </div>
+            <h1 class="text-3xl font-bold text-gray-900 mb-1">RoomHy</h1>
+            <p class="text-gray-500 text-sm">Property Management Portal</p>
+        </div>
+
+        <div id="login-form" class="fade-in">
+            <h2 class="text-lg font-semibold text-gray-800 mb-6 text-center">Unified Login</h2>
+
+            <form onsubmit="event.preventDefault(); handleLogin();">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Login ID / Email</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400"><i data-lucide="user" class="w-5 h-5"></i></span>
+                        <input 
+                            type="text" 
+                            class="input-focus w-full pl-10 p-3 border border-gray-300 rounded-lg focus:ring-purple-500 transition-colors outline-none" 
+                            id="login-id" 
+                            placeholder="Email or ID (e.g. EMP..., ROOMHY...)" 
+                            required
+                            autocomplete="off"
+                        >
+                    </div>
+                </div>
+
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Password</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400"><i data-lucide="key" class="w-5 h-5"></i></span>
+                        <input 
+                            type="password" 
+                            class="input-focus w-full pl-10 p-3 border border-gray-300 rounded-lg focus:ring-purple-500 transition-colors outline-none" 
+                            id="login-password" 
+                            placeholder="••••••••" 
+                            required
+                            autocomplete="off"
+                        >
+                    </div>
+                    <div id="error-msg" class="error-msg hidden"></div>
+                </div>
+
+                <button type="submit" class="btn-primary w-full text-white font-bold py-3 rounded-lg transition-all flex justify-center items-center gap-2">
+                    Login <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        lucide.createIcons();
+
+        function handleLogin() {
+            const loginId = document.getElementById('login-id').value.trim();
+            const password = document.getElementById('login-password').value.trim();
+            const errorMsg = document.getElementById('error-msg');
+            errorMsg.classList.add('hidden');
+
+            // 1. Super Admin (Email)
+            if (loginId.includes('@')) {
+                loginSuperAdmin(loginId, password, errorMsg);
+                return;
+            } 
+            
+            const upperId = loginId.toUpperCase();
+
+            // 2. Area Manager (MGR)
+            if (upperId.startsWith('MGR')) {
+                loginAreaManager(upperId, password, errorMsg);
+                return;
+            } 
+            
+            // 3. Team Employee (EMP)
+            if (upperId.startsWith('EMP')) {
+                loginEmployee(upperId, password, errorMsg);
+                return;
+            }
+
+            // 4. Property Owner (ROOMHY)
+            if (upperId.startsWith('ROOMHY')) {
+                // Redirect to dedicated owner login logic (or reuse propertyowner/ownerlogin.html)
+                window.location.href = 'propertyowner/ownerlogin.html';
+                return;
+            }
+
+            showError('Invalid ID format.', errorMsg);
+        }
+
+        // --- Logic for Employees ---
+        function loginEmployee(loginId, password, errorMsg) {
+            const employees = JSON.parse(localStorage.getItem('roomhy_employees') || '[]');
+            const emp = employees.find(e => e.loginId === loginId && e.password === password);
+
+            if (!emp) {
+                showError('Invalid Employee ID or password.', errorMsg);
+                return;
+            }
+
+            // Create Session
+            const user = {
+                loginId: emp.loginId,
+                name: emp.name,
+                role: 'employee',
+                team: emp.role, // "Marketing Team", etc.
+                permissions: emp.permissions || [],
+                areaCode: 'TEAM', // Identifier for dashboard
+                areaName: emp.role // Display Team Name
+            };
+
+            // Store in common key
+            localStorage.setItem('user', JSON.stringify(user));
+            // Also store as manager_user if legacy code checks it
+            localStorage.setItem('manager_user', JSON.stringify(user)); 
+            
+            // Redirect to Unified Dashboard
+            window.location.href = 'Areamanager/areaadmin.html';
+        }
+
+        function loginSuperAdmin(email, password, errorMsg) {
+            const db = JSON.parse(localStorage.getItem('roomhy_superadmin_db') || 'null');
+            if (db && db.email === email && db.password === password) {
+                const user = { ...db, role: 'superadmin' };
+                localStorage.setItem('user', JSON.stringify(user));
+                window.location.href = 'superadmin/superadmin.html';
+            } else showError('Invalid Super Admin credentials.', errorMsg);
+        }
+
+        function loginAreaManager(loginId, password, errorMsg) {
+            const db = JSON.parse(localStorage.getItem('roomhy_areamanagers_db') || '[]');
+            const mgr = db.find(m => m.loginId === loginId && m.password === password);
+            if (mgr) {
+                const user = { ...mgr, role: 'areamanager' };
+                localStorage.setItem('user', JSON.stringify(user));
+                localStorage.setItem('manager_user', JSON.stringify(user));
+                window.location.href = 'Areamanager/areaadmin.html';
+            } else showError('Invalid Manager credentials.', errorMsg);
+        }
+
+        function showError(msg, errorMsg) {
+            errorMsg.textContent = msg;
+            errorMsg.classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>
