@@ -44,21 +44,19 @@
 
         // --- EARLY AUTH CHECK (RUN IMMEDIATELY) ---
         // Get user from localStorage
-        // For area manager panel, PRIORITIZE manager_user (set by employee/manager login)
+        // For area manager panel, MUST use manager_user (set ONLY by employee/manager login)
         const managerUser = JSON.parse(localStorage.getItem('manager_user') || 'null');
         const user = JSON.parse(localStorage.getItem('user') || 'null');
         
-        // Use manager_user if available (this is the correct key for employees/managers)
-        // Otherwise fall back to user, but only if it's not an owner
+        // ONLY allow access if manager_user is valid (employee or areamanager)
+        // Do NOT fall back to user key - that's for property owners
         let currentUser = null;
         if (managerUser && (managerUser.role === 'areamanager' || managerUser.role === 'employee')) {
             currentUser = managerUser;
-        } else if (user && (user.role === 'areamanager' || user.role === 'employee')) {
-            currentUser = user;
         }
         
         // Check if user is authorized to access this panel
-        // Only areamanager and employee roles allowed
+        // Only areamanager and employee roles allowed (via manager_user key)
         if (!currentUser) {
             // User is not authorized - redirect to appropriate panel
             if (user && user.role === 'owner') {
