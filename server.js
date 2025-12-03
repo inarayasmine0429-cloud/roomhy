@@ -44,18 +44,18 @@ app.use('/api/rooms', require('./roomhy-backend/routes/roomRoutes'));
 app.use('/api/notifications', require('./roomhy-backend/routes/notificationRoutes'));
 
 const PORT = process.env.PORT || 5000;
-// Ensure root path serves the main index (helps platforms like Render)
+
+// Fallback middleware: serve index.html for any unmatched route (SPA fallback)
+// Must come AFTER all other routes and static middleware
 const path = require('path');
-
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
-});
-
-// Fallback: serve index.html for any unknown route (useful for SPA or direct links)
-// Use app.use instead of app.get with '*' to avoid path-to-regexp errors on some Express versions
-app.use((req, res) => {
+const fs = require('fs');
+app.use((req, res, next) => {
+    // Only respond to requests for non-API, non-static routes
+    if (req.path.startsWith('/api/')) {
+        return next(); // Pass API requests to 404 handler
+    }
     const indexPath = path.join(__dirname, 'index.html');
-    if (require('fs').existsSync(indexPath)) {
+    if (fs.existsSync(indexPath)) {
         return res.sendFile(indexPath);
     }
     return res.status(404).send('Not Found');
