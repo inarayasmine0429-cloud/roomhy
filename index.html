@@ -228,6 +228,8 @@
             
             if (db[id] && db[id].credentials && db[id].credentials.password === password) {
                  const user = { loginId: id, ownerId: id, ...db[id].profile, role: 'owner' };
+                 // Clear any stale manager session
+                 localStorage.removeItem('manager_user');
                  localStorage.setItem('user', JSON.stringify(user)); 
                  window.location.href = 'propertyowner/admin.html';
             } else {
