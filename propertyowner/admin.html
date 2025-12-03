@@ -22,12 +22,31 @@
 <body class="text-slate-800">
     <script>
         // Early role validation (MUST RUN FIRST)
+        // For property owner panel, ONLY use the 'user' key
+        // Ignore manager_user which is for employees/managers
         const userStr = localStorage.getItem('user');
+        const managerStr = localStorage.getItem('manager_user');
+        
         let currentUser = null;
         try {
             currentUser = userStr ? JSON.parse(userStr) : null;
         } catch (e) {
             currentUser = null;
+        }
+        
+        // Check if user is actually an owner
+        // If manager_user exists with employee/manager role, that takes priority
+        let managerUser = null;
+        try {
+            managerUser = managerStr ? JSON.parse(managerStr) : null;
+        } catch (e) {
+            managerUser = null;
+        }
+        
+        // If manager_user has a valid employee/manager, they should not be here
+        if (managerUser && (managerUser.role === 'employee' || managerUser.role === 'areamanager')) {
+            window.location.href = '../Areamanager/areaadmin.html';
+            throw new Error("Employee/Manager session takes priority");
         }
         
         // Redirect if not owner
@@ -44,7 +63,7 @@
             throw new Error("Unauthorized");
         }
         
-        // User is authorized - continue loading the page
+        // User is authorized as owner - continue loading the page
     </script>
 
     <div class="flex h-screen overflow-hidden">
