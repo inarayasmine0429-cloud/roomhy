@@ -40,9 +40,16 @@ function initializeSeeder() {
     console.log("✅ Area Managers DB initialized (empty)");
 
     // ============================================
+    // 2B. EMPLOYEES DATABASE (Empty - created by Super Admin)
+    // ============================================
+    const employeesDb = [];
+    localStorage.setItem('roomhy_employees', JSON.stringify(employeesDb));
+    console.log("✅ Employees DB initialized (empty)");
+
+    // ============================================
     // 3. PROPERTY OWNERS DATABASE (Empty - created by Super Admin)
     // ============================================
-    const ownersDb = {};
+    const ownersDb = [];
     localStorage.setItem('roomhy_owners_db', JSON.stringify(ownersDb));
     console.log("✅ Property Owners DB initialized (empty)");
 
