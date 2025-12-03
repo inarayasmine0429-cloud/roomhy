@@ -26,7 +26,7 @@
             from { opacity: 0; transform: translateY(10px); } 
             to { opacity: 1; transform: translateY(0); } 
         }
-        .btn-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .btn-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); cursor: pointer; }
         .btn-primary:hover { background: linear-gradient(135deg, #5568d3 0%, #6a3f91 100%); }
         .input-focus:focus { box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1); }
         .error-msg { color: #dc2626; font-size: 0.875rem; margin-top: 0.5rem; }
@@ -257,10 +257,18 @@
         let tempOwnerData = null;
 
         function handleLogin() {
+            console.log('Login button clicked');
             const loginId = document.getElementById('login-id').value.trim();
             const password = document.getElementById('login-password').value.trim();
             const errorMsg = document.getElementById('error-msg');
             errorMsg.classList.add('hidden');
+
+            console.log('Login ID:', loginId, 'Password length:', password.length);
+
+            if (!loginId || !password) {
+                showError('Please fill in all fields.', errorMsg);
+                return;
+            }
 
             // 1. Super Admin (Email)
             if (loginId.includes('@')) {
@@ -288,18 +296,27 @@
                 return;
             }
 
-            showError('Invalid ID format.', errorMsg);
+            showError('Invalid ID format. Use ROOMHY..., EMP..., MGR... or email.', errorMsg);
         }
 
         // --- Property Owner Login Flow ---
         function loginPropertyOwner(loginId, tempPassword, errorMsg) {
             const owners = JSON.parse(localStorage.getItem('roomhy_owners_db') || '[]');
-            const owner = owners.find(o => o.loginId === loginId && o.password === tempPassword);
+            console.log('Total owners in DB:', owners.length);
+            console.log('Looking for owner with ID:', loginId);
+            
+            const owner = owners.find(o => {
+                console.log('Comparing:', o.loginId, '===', loginId, 'Pass match:', o.password === tempPassword);
+                return o.loginId === loginId && o.password === tempPassword;
+            });
 
             if (!owner) {
+                console.log('Owner not found or password incorrect');
                 showError('Invalid Owner ID or password.', errorMsg);
                 return;
             }
+
+            console.log('Owner found:', owner.name);
 
             // Store temp owner data
             tempOwnerData = { ...owner, loginId };
@@ -307,9 +324,11 @@
             // Check if password has been set before (first login only)
             if (!owner.passwordSet) {
                 // First login - show password reset modal
+                console.log('First login detected - showing password reset');
                 showModal('set-password-modal');
             } else {
                 // Already set - go directly to profile
+                console.log('Password already set - showing profile update');
                 showModal('profile-update-modal');
             }
         }
@@ -426,54 +445,70 @@
 
         // --- Logic for Employees ---
         function loginEmployee(loginId, password, errorMsg) {
+            console.log('Attempting employee login:', loginId);
             const employees = JSON.parse(localStorage.getItem('roomhy_employees') || '[]');
+            console.log('Total employees in DB:', employees.length);
             const emp = employees.find(e => e.loginId === loginId && e.password === password);
 
             if (!emp) {
+                console.log('Employee not found or invalid password');
                 showError('Invalid Employee ID or password.', errorMsg);
                 return;
             }
+
+            console.log('Employee found:', emp.name);
 
             // Create Session
             const user = {
                 loginId: emp.loginId,
                 name: emp.name,
                 role: 'employee',
-                team: emp.role, // "Marketing Team", etc.
-                area: emp.area || 'Unassigned', // Assigned area (e.g., "Bangalore", "Koramangala")
+                team: emp.role,
+                area: emp.area || 'Unassigned',
                 city: emp.city || '',
                 permissions: emp.permissions || [],
-                areaCode: 'TEAM', // Identifier for dashboard
-                areaName: emp.area || emp.role // Display assigned area, fallback to team name
+                areaCode: 'TEAM',
+                areaName: emp.area || emp.role
             };
 
             // Store in common key
             localStorage.setItem('user', JSON.stringify(user));
-            // Also store as manager_user if legacy code checks it
             localStorage.setItem('manager_user', JSON.stringify(user)); 
             
+            console.log('Redirecting to area manager dashboard');
             // Redirect to Unified Dashboard
             window.location.href = 'Areamanager/areaadmin.html';
         }
 
         function loginSuperAdmin(email, password, errorMsg) {
+            console.log('Attempting super admin login:', email);
             const db = JSON.parse(localStorage.getItem('roomhy_superadmin_db') || 'null');
             if (db && db.email === email && db.password === password) {
                 const user = { ...db, role: 'superadmin' };
                 localStorage.setItem('user', JSON.stringify(user));
+                console.log('Super admin login successful, redirecting');
                 window.location.href = 'superadmin/superadmin.html';
-            } else showError('Invalid Super Admin credentials.', errorMsg);
+            } else {
+                console.log('Super admin credentials invalid');
+                showError('Invalid Super Admin credentials.', errorMsg);
+            }
         }
 
         function loginAreaManager(loginId, password, errorMsg) {
+            console.log('Attempting area manager login:', loginId);
             const db = JSON.parse(localStorage.getItem('roomhy_areamanagers_db') || '[]');
+            console.log('Total area managers in DB:', db.length);
             const mgr = db.find(m => m.loginId === loginId && m.password === password);
             if (mgr) {
                 const user = { ...mgr, role: 'areamanager' };
                 localStorage.setItem('user', JSON.stringify(user));
                 localStorage.setItem('manager_user', JSON.stringify(user));
+                console.log('Area manager login successful, redirecting');
                 window.location.href = 'Areamanager/areaadmin.html';
-            } else showError('Invalid Manager credentials.', errorMsg);
+            } else {
+                console.log('Area manager credentials invalid');
+                showError('Invalid Manager credentials.', errorMsg);
+            }
         }
 
         // --- Utility Functions ---
