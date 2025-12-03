@@ -52,13 +52,13 @@ app.get('/', (req, res) => {
 });
 
 // Fallback: serve index.html for any unknown route (useful for SPA or direct links)
-app.get('*', (req, res) => {
+// Use app.use instead of app.get with '*' to avoid path-to-regexp errors on some Express versions
+app.use((req, res) => {
     const indexPath = path.join(__dirname, 'index.html');
     if (require('fs').existsSync(indexPath)) {
-        res.sendFile(indexPath);
-    } else {
-        res.status(404).send('Not Found');
+        return res.sendFile(indexPath);
     }
+    return res.status(404).send('Not Found');
 });
 
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
