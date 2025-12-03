@@ -470,6 +470,34 @@
 
     <script>
         lucide.createIcons();
+        let myArea = '';
+        let isAreaManager = false;
+
+        // Auth Check on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            const user = JSON.parse(localStorage.getItem('manager_user') || localStorage.getItem('user') || 'null');
+            
+            if (user && user.role === 'areamanager') {
+                isAreaManager = true;
+            } else if (user && user.role === 'employee' && user.area) {
+                isAreaManager = false;
+                myArea = user.area;
+                // Filter KYC records by area based on user type (tenant/owner)
+                filterKYCByArea(myArea);
+            }
+        });
+
+        function filterKYCByArea(area) {
+            // Filter KYC table rows by user type and area association
+            const rows = document.querySelectorAll('tbody tr');
+            rows.forEach(row => {
+                // For this demo, we filter based on property/user area mentioned
+                // In production, this would check KYC user's assigned area
+                const userCol = row.querySelector('td:nth-child(1)');
+                const shouldShow = true; // For now, show all KYC records (as users aren't area-tagged)
+                row.style.display = shouldShow ? '' : 'none';
+            });
+        }
 
         function toggleMobileMenu() {
             const mobileSidebar = document.getElementById('mobile-sidebar');

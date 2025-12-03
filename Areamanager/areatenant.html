@@ -434,6 +434,61 @@
 
     <script>
         lucide.createIcons();
+        let myArea = '';
+        let isAreaManager = false;
+        let canViewAllDetails = false;
+
+        // Auth Check on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            const user = JSON.parse(localStorage.getItem('manager_user') || localStorage.getItem('user') || 'null');
+            
+            if (user && user.role === 'areamanager') {
+                isAreaManager = true;
+                document.getElementById('headerName').innerText = user.name;
+                document.getElementById('headerRole').innerText = `${user.areaName || 'Area'} Manager`;
+            } else if (user && user.role === 'employee' && user.area) {
+                isAreaManager = false;
+                myArea = user.area;
+                document.getElementById('headerName').innerText = user.name;
+                document.getElementById('headerRole').innerText = `${user.area} Team Member`;
+                
+                // Check permissions
+                canViewAllDetails = user.permissions && user.permissions.includes('view_all_details');
+                
+                // Hide sensitive data if no view_all_details permission
+                if (!canViewAllDetails) {
+                    document.querySelectorAll('[data-sensitive]').forEach(el => {
+                        el.textContent = '●●●●●●●●';
+                    });
+                }
+            }
+
+            // Filter tenants by area if employee
+            if (!isAreaManager && myArea) {
+                filterTenantsByArea(myArea);
+            }
+        });
+
+        function filterTenantsByArea(area) {
+            // Get all tenant rows and hide those not matching the assigned area
+            const rows = document.querySelectorAll('tbody tr');
+            rows.forEach(row => {
+                const locationCol = row.querySelector('td:nth-child(4)'); // "Current Location (Property)"
+                if (locationCol) {
+                    const location = locationCol.textContent.trim();
+                    // Check if row location matches assigned area
+                    const shouldShow = location.includes(area) || location.includes('Property in ' + area);
+                    row.style.display = shouldShow ? '' : 'none';
+                }
+            });
+
+            // Show message if no tenants found for this area
+            const visibleRows = document.querySelectorAll('tbody tr:not([style*="display: none"])');
+            if (visibleRows.length === 0) {
+                const tbody = document.querySelector('tbody');
+                tbody.innerHTML = `<tr><td colspan="9" class="text-center py-8 text-gray-500">No tenants found for ${area} area.</td></tr>`;
+            }
+        }
 
         function toggleMobileMenu() {
             const mobileSidebar = document.getElementById('mobile-sidebar');

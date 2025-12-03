@@ -531,6 +531,42 @@
 
     <script>
         lucide.createIcons();
+        let myArea = '';
+        let isAreaManager = false;
+
+        // Auth Check on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            const user = JSON.parse(localStorage.getItem('manager_user') || localStorage.getItem('user') || 'null');
+            
+            if (user && user.role === 'areamanager') {
+                isAreaManager = true;
+            } else if (user && user.role === 'employee' && user.area) {
+                isAreaManager = false;
+                myArea = user.area;
+                // Filter complaint records by area
+                filterComplaintsByArea(myArea);
+            }
+        });
+
+        function filterComplaintsByArea(area) {
+            // Filter complaint table rows by property area
+            const rows = document.querySelectorAll('tbody tr');
+            rows.forEach(row => {
+                const propertyCol = row.querySelector('td:nth-child(3)');
+                if (propertyCol) {
+                    const location = propertyCol.textContent.toLowerCase();
+                    const shouldShow = location.includes(area.toLowerCase());
+                    row.style.display = shouldShow ? '' : 'none';
+                }
+            });
+
+            // Show message if no records found
+            const visibleRows = document.querySelectorAll('tbody tr:not([style*="display: none"])');
+            if (visibleRows.length === 0) {
+                const tbody = document.querySelector('tbody');
+                tbody.innerHTML = `<tr><td colspan="9" class="text-center py-8 text-gray-500">No complaints found for ${area} area.</td></tr>`;
+            }
+        }
 
         function toggleMobileMenu() {
             const mobileSidebar = document.getElementById('mobile-sidebar');
