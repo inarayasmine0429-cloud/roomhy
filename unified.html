@@ -87,7 +87,7 @@
         </div>
     </div>
 
-    <!-- Set Password Modal (for Property Owners) -->
+    <!-- Set Password Modal (Only for First Time Property Owners) -->
     <div id="set-password-modal" class="modal-overlay hidden">
         <div class="modal-content">
             <div class="text-center mb-6">
@@ -129,124 +129,9 @@
                 </div>
 
                 <button type="submit" class="btn-primary w-full text-white font-bold py-3 rounded-lg transition-all flex justify-center items-center gap-2">
-                    Continue <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                    Set Password & Login <i data-lucide="arrow-right" class="w-4 h-4"></i>
                 </button>
             </form>
-        </div>
-    </div>
-
-    <!-- Profile Update Modal -->
-    <div id="profile-update-modal" class="modal-overlay hidden">
-        <div class="modal-content">
-            <div class="text-center mb-6">
-                <div class="inline-flex items-center justify-center w-14 h-14 bg-blue-100 rounded-lg mb-4">
-                    <i data-lucide="user-check" class="w-7 h-7 text-blue-600"></i>
-                </div>
-                <h2 class="text-2xl font-bold text-gray-900 mb-2">Complete Your Profile</h2>
-                <p class="text-gray-600 text-sm">Help us verify your information</p>
-            </div>
-
-            <form onsubmit="event.preventDefault(); handleProfileUpdate();">
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
-                    <div class="relative">
-                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400"><i data-lucide="phone" class="w-5 h-5"></i></span>
-                        <input 
-                            type="tel" 
-                            class="input-focus w-full pl-10 p-3 border border-gray-300 rounded-lg focus:ring-purple-500 outline-none" 
-                            id="profile-phone" 
-                            placeholder="+91 98765 43210" 
-                            required
-                        >
-                    </div>
-                </div>
-
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Address</label>
-                    <textarea 
-                        class="input-focus w-full p-3 border border-gray-300 rounded-lg focus:ring-purple-500 outline-none" 
-                        id="profile-address" 
-                        placeholder="Property address" 
-                        rows="3" 
-                        required
-                    ></textarea>
-                </div>
-
-                <div class="mb-6">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">City</label>
-                    <input 
-                        type="text" 
-                        class="input-focus w-full p-3 border border-gray-300 rounded-lg focus:ring-purple-500 outline-none" 
-                        id="profile-city" 
-                        placeholder="City" 
-                        required
-                    >
-                </div>
-
-                <button type="submit" class="btn-primary w-full text-white font-bold py-3 rounded-lg transition-all flex justify-center items-center gap-2">
-                    Continue <i data-lucide="arrow-right" class="w-4 h-4"></i>
-                </button>
-            </form>
-        </div>
-    </div>
-
-    <!-- KYC Verification Modal -->
-    <div id="kyc-modal" class="modal-overlay hidden">
-        <div class="modal-content">
-            <div class="text-center mb-6">
-                <div class="inline-flex items-center justify-center w-14 h-14 bg-green-100 rounded-lg mb-4">
-                    <i data-lucide="shield-check" class="w-7 h-7 text-green-600"></i>
-                </div>
-                <h2 class="text-2xl font-bold text-gray-900 mb-2">KYC Verification</h2>
-                <p class="text-gray-600 text-sm">Upload documents to complete verification</p>
-            </div>
-
-            <form onsubmit="event.preventDefault(); handleKYC();">
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Aadhar Number</label>
-                    <div class="relative">
-                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400"><i data-lucide="id-card" class="w-5 h-5"></i></span>
-                        <input 
-                            type="text" 
-                            class="input-focus w-full pl-10 p-3 border border-gray-300 rounded-lg focus:ring-purple-500 outline-none" 
-                            id="kyc-aadhar" 
-                            placeholder="XXXX XXXX XXXX" 
-                            maxlength="12"
-                            required
-                        >
-                    </div>
-                </div>
-
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">PAN Number (Optional)</label>
-                    <input 
-                        type="text" 
-                        class="input-focus w-full p-3 border border-gray-300 rounded-lg focus:ring-purple-500 outline-none" 
-                        id="kyc-pan" 
-                        placeholder="AAAA0000A"
-                    >
-                </div>
-
-                <div class="mb-6">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Document Upload</label>
-                    <input 
-                        type="file" 
-                        class="w-full p-3 border border-gray-300 rounded-lg focus:ring-purple-500 outline-none" 
-                        id="kyc-document"
-                        accept="image/*,application/pdf"
-                        title="Upload KYC document"
-                    >
-                    <p class="text-xs text-gray-500 mt-2">JPG, PNG, or PDF (Max 5MB)</p>
-                </div>
-
-                <button type="submit" class="btn-primary w-full text-white font-bold py-3 rounded-lg transition-all flex justify-center items-center gap-2">
-                    Complete & Continue <i data-lucide="arrow-right" class="w-4 h-4"></i>
-                </button>
-            </form>
-
-            <button onclick="skipKYC()" class="w-full mt-3 py-2 text-purple-600 font-medium text-sm hover:bg-purple-50 rounded-lg transition">
-                Skip for Now
-            </button>
         </div>
     </div>
 
@@ -257,20 +142,17 @@
         let tempOwnerData = null;
 
         function handleLogin() {
-            console.log('Login button clicked');
             const loginId = document.getElementById('login-id').value.trim();
             const password = document.getElementById('login-password').value.trim();
             const errorMsg = document.getElementById('error-msg');
             errorMsg.classList.add('hidden');
-
-            console.log('Login ID:', loginId, 'Password length:', password.length);
 
             if (!loginId || !password) {
                 showError('Please fill in all fields.', errorMsg);
                 return;
             }
 
-            // 1. Super Admin (Email)
+            // 1. Super Admin (Email) -> Direct Login
             if (loginId.includes('@')) {
                 loginSuperAdmin(loginId, password, errorMsg);
                 return;
@@ -278,19 +160,19 @@
             
             const upperId = loginId.toUpperCase();
 
-            // 2. Area Manager (MGR)
+            // 2. Area Manager (MGR) -> Direct Login
             if (upperId.startsWith('MGR')) {
                 loginAreaManager(upperId, password, errorMsg);
                 return;
             } 
             
-            // 3. Team Employee (EMP)
+            // 3. Team Employee (EMP) -> Direct Login
             if (upperId.startsWith('EMP')) {
                 loginEmployee(upperId, password, errorMsg);
                 return;
             }
 
-            // 4. Property Owner (ROOMHY)
+            // 4. Property Owner (ROOMHY) -> Check First Time
             if (upperId.startsWith('ROOMHY')) {
                 loginPropertyOwner(upperId, password, errorMsg);
                 return;
@@ -300,36 +182,43 @@
         }
 
         // --- Property Owner Login Flow ---
-        function loginPropertyOwner(loginId, tempPassword, errorMsg) {
-            const owners = JSON.parse(localStorage.getItem('roomhy_owners_db') || '[]');
-            console.log('Total owners in DB:', owners.length);
-            console.log('Looking for owner with ID:', loginId);
-            
-            const owner = owners.find(o => {
-                console.log('Comparing:', o.loginId, '===', loginId, 'Pass match:', o.password === tempPassword);
-                return o.loginId === loginId && o.password === tempPassword;
-            });
+        function loginPropertyOwner(loginId, inputPassword, errorMsg) {
+            // Owners DB is stored as an Object { "ID": { ... } }
+            const ownersDb = JSON.parse(localStorage.getItem('roomhy_owners_db') || '{}');
+            const ownerRecord = ownersDb[loginId];
 
-            if (!owner) {
-                console.log('Owner not found or password incorrect');
-                showError('Invalid Owner ID or password.', errorMsg);
+            if (!ownerRecord) {
+                showError('Invalid Owner ID.', errorMsg);
                 return;
             }
 
-            console.log('Owner found:', owner.name);
+            // Check password from credentials object or direct property
+            const storedPassword = ownerRecord.credentials?.password || ownerRecord.password;
+            
+            if (storedPassword !== inputPassword) {
+                showError('Invalid password.', errorMsg);
+                return;
+            }
 
-            // Store temp owner data
-            tempOwnerData = { ...owner, loginId };
+            // Store temp data for session creation
+            tempOwnerData = {
+                loginId: loginId,
+                name: ownerRecord.profile?.name || 'Owner',
+                email: ownerRecord.profile?.email || '',
+                phone: ownerRecord.profile?.phone || '',
+                role: 'owner'
+            };
 
-            // Check if password has been set before (first login only)
-            if (!owner.passwordSet) {
-                // First login - show password reset modal
-                console.log('First login detected - showing password reset');
+            // Check if it's the first time login (flag from admin creation)
+            // We check credentials.firstTime OR if passwordSet flag is missing/false
+            const isFirstTime = ownerRecord.credentials?.firstTime === true || !ownerRecord.passwordSet;
+
+            if (isFirstTime) {
+                // Prompt to set new password
                 showModal('set-password-modal');
             } else {
-                // Already set - go directly to profile
-                console.log('Password already set - showing profile update');
-                showModal('profile-update-modal');
+                // Not first time - Login directly
+                completeOwnerLogin();
             }
         }
 
@@ -349,164 +238,79 @@
                 return;
             }
 
-            // Update owner with new password and mark as set
-            const owners = JSON.parse(localStorage.getItem('roomhy_owners_db') || '[]');
-            const idx = owners.findIndex(o => o.loginId === tempOwnerData.loginId);
-            if (idx !== -1) {
-                owners[idx].password = newPass;
-                owners[idx].passwordSet = true;
-                localStorage.setItem('roomhy_owners_db', JSON.stringify(owners));
+            // Update DB
+            const ownersDb = JSON.parse(localStorage.getItem('roomhy_owners_db') || '{}');
+            const loginId = tempOwnerData.loginId;
+
+            if (ownersDb[loginId]) {
+                // Update password
+                if (!ownersDb[loginId].credentials) ownersDb[loginId].credentials = {};
+                ownersDb[loginId].credentials.password = newPass;
+                
+                // Remove firstTime flag and set passwordSet
+                delete ownersDb[loginId].credentials.firstTime;
+                ownersDb[loginId].passwordSet = true;
+                
+                localStorage.setItem('roomhy_owners_db', JSON.stringify(ownersDb));
+                
+                // Update temp data
                 tempOwnerData.password = newPass;
-                tempOwnerData.passwordSet = true;
             }
 
-            // Clear form
-            document.getElementById('new-password').value = '';
-            document.getElementById('confirm-password').value = '';
-
-            // Close password modal and show profile update modal
             hideModal('set-password-modal');
-            showModal('profile-update-modal');
-        }
-
-        function handleProfileUpdate() {
-            const phone = document.getElementById('profile-phone').value.trim();
-            const address = document.getElementById('profile-address').value.trim();
-            const city = document.getElementById('profile-city').value.trim();
-
-            if (!phone || !address || !city) {
-                alert('Please fill all fields');
-                return;
-            }
-
-            // Update owner profile
-            const owners = JSON.parse(localStorage.getItem('roomhy_owners_db') || '[]');
-            const idx = owners.findIndex(o => o.loginId === tempOwnerData.loginId);
-            if (idx !== -1) {
-                owners[idx].phone = phone;
-                owners[idx].address = address;
-                owners[idx].city = city;
-                owners[idx].profileUpdated = true;
-                localStorage.setItem('roomhy_owners_db', JSON.stringify(owners));
-                tempOwnerData = { ...owners[idx], loginId: tempOwnerData.loginId };
-            }
-
-            // Close profile modal and show KYC modal
-            hideModal('profile-update-modal');
-            showModal('kyc-modal');
-        }
-
-        function handleKYC() {
-            const aadhar = document.getElementById('kyc-aadhar').value.trim();
-            const pan = document.getElementById('kyc-pan').value.trim();
-
-            if (!aadhar || aadhar.length < 12) {
-                alert('Please enter a valid Aadhar number');
-                return;
-            }
-
-            // Update owner KYC
-            const owners = JSON.parse(localStorage.getItem('roomhy_owners_db') || '[]');
-            const idx = owners.findIndex(o => o.loginId === tempOwnerData.loginId);
-            if (idx !== -1) {
-                owners[idx].aadhar = aadhar;
-                owners[idx].pan = pan;
-                owners[idx].kycVerified = 'pending';
-                localStorage.setItem('roomhy_owners_db', JSON.stringify(owners));
-                tempOwnerData = { ...owners[idx], loginId: tempOwnerData.loginId };
-            }
-
-            // Complete login and redirect to dashboard
-            completeOwnerLogin();
-        }
-
-        function skipKYC() {
-            // Skip KYC for now and redirect to dashboard
             completeOwnerLogin();
         }
 
         function completeOwnerLogin() {
-            // Create session for owner
-            const user = {
-                loginId: tempOwnerData.loginId,
-                name: tempOwnerData.name,
-                email: tempOwnerData.email,
-                phone: tempOwnerData.phone || '',
-                role: 'owner',
-                ownerArea: tempOwnerData.area || 'Unassigned'
-            };
-
-            localStorage.setItem('user', JSON.stringify(user));
-            hideModal('kyc-modal');
-
-            // Redirect to owner dashboard
+            localStorage.setItem('user', JSON.stringify(tempOwnerData));
             window.location.href = 'propertyowner/admin.html';
         }
 
         // --- Logic for Employees ---
         function loginEmployee(loginId, password, errorMsg) {
-            console.log('Attempting employee login:', loginId);
             const employees = JSON.parse(localStorage.getItem('roomhy_employees') || '[]');
-            console.log('Total employees in DB:', employees.length);
             const emp = employees.find(e => e.loginId === loginId && e.password === password);
 
             if (!emp) {
-                console.log('Employee not found or invalid password');
                 showError('Invalid Employee ID or password.', errorMsg);
                 return;
             }
 
-            console.log('Employee found:', emp.name);
-
-            // Create Session
             const user = {
                 loginId: emp.loginId,
                 name: emp.name,
                 role: 'employee',
                 team: emp.role,
-                area: emp.area || 'Unassigned',
-                city: emp.city || '',
                 permissions: emp.permissions || [],
                 areaCode: 'TEAM',
-                areaName: emp.area || emp.role
+                areaName: emp.role
             };
 
-            // Store in common key
             localStorage.setItem('user', JSON.stringify(user));
             localStorage.setItem('manager_user', JSON.stringify(user)); 
-            
-            console.log('Redirecting to area manager dashboard');
-            // Redirect to Unified Dashboard
             window.location.href = 'Areamanager/areaadmin.html';
         }
 
         function loginSuperAdmin(email, password, errorMsg) {
-            console.log('Attempting super admin login:', email);
             const db = JSON.parse(localStorage.getItem('roomhy_superadmin_db') || 'null');
             if (db && db.email === email && db.password === password) {
                 const user = { ...db, role: 'superadmin' };
                 localStorage.setItem('user', JSON.stringify(user));
-                console.log('Super admin login successful, redirecting');
                 window.location.href = 'superadmin/superadmin.html';
             } else {
-                console.log('Super admin credentials invalid');
                 showError('Invalid Super Admin credentials.', errorMsg);
             }
         }
 
         function loginAreaManager(loginId, password, errorMsg) {
-            console.log('Attempting area manager login:', loginId);
             const db = JSON.parse(localStorage.getItem('roomhy_areamanagers_db') || '[]');
-            console.log('Total area managers in DB:', db.length);
             const mgr = db.find(m => m.loginId === loginId && m.password === password);
             if (mgr) {
                 const user = { ...mgr, role: 'areamanager' };
                 localStorage.setItem('user', JSON.stringify(user));
                 localStorage.setItem('manager_user', JSON.stringify(user));
-                console.log('Area manager login successful, redirecting');
                 window.location.href = 'Areamanager/areaadmin.html';
             } else {
-                console.log('Area manager credentials invalid');
                 showError('Invalid Manager credentials.', errorMsg);
             }
         }

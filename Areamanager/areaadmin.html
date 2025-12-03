@@ -30,7 +30,20 @@
             catch (e) { document.body.innerHTML = `<div class="flex items-center justify-center h-screen bg-gray-100"><a href="${url}" class="bg-purple-600 text-white px-6 py-3 rounded-lg">Click to Login</a></div>`; }
         }
 
-        if (!user) safeRedirect('../unifiedlogin.html');
+        if (!user) safeRedirect('../index.html');
+        
+        // Prevent property owners and super admins from accessing area manager panel
+        if (user.role === 'owner') {
+            localStorage.removeItem('user');
+            localStorage.removeItem('manager_user');
+            safeRedirect('../propertyowner/admin.html');
+        }
+        
+        if (user.role === 'superadmin') {
+            localStorage.removeItem('user');
+            localStorage.removeItem('manager_user');
+            safeRedirect('../superadmin/superadmin.html');
+        }
 
         // 1. Config for ALL possible modules
         const sidebarConfig = {

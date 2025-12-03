@@ -271,6 +271,10 @@
         }
 
         function completeOwnerLogin() {
+            // Clear any stale sessions from other user types
+            localStorage.removeItem('manager_user');
+            localStorage.removeItem('tenant_user');
+            
             localStorage.setItem('user', JSON.stringify(tempOwnerData));
             window.location.href = 'propertyowner/admin.html';
         }
@@ -298,6 +302,9 @@
                 phone: emp.phone || ''
             };
 
+            // Clear any stale sessions from other user types
+            localStorage.removeItem('tenant_user');
+            
             localStorage.setItem('user', JSON.stringify(user));
             localStorage.setItem('manager_user', JSON.stringify(user)); 
             window.location.href = 'Areamanager/areaadmin.html';
@@ -307,6 +314,11 @@
             const db = JSON.parse(localStorage.getItem('roomhy_superadmin_db') || 'null');
             if (db && db.email === email && db.password === password) {
                 const user = { ...db, role: 'superadmin' };
+                
+                // Clear any stale sessions from other user types
+                localStorage.removeItem('manager_user');
+                localStorage.removeItem('tenant_user');
+                
                 localStorage.setItem('user', JSON.stringify(user));
                 window.location.href = 'superadmin/superadmin.html';
             } else {
@@ -319,6 +331,10 @@
             const mgr = db.find(m => m.loginId === loginId && m.password === password);
             if (mgr) {
                 const user = { ...mgr, role: 'areamanager' };
+                
+                // Clear any stale sessions from other user types
+                localStorage.removeItem('tenant_user');
+                
                 localStorage.setItem('user', JSON.stringify(user));
                 localStorage.setItem('manager_user', JSON.stringify(user));
                 window.location.href = 'Areamanager/areaadmin.html';
