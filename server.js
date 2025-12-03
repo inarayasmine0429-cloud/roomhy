@@ -11,6 +11,15 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
+// Serve Static Files (HTML, CSS, JS, Images)
+app.use(express.static('.')); // Serve all files from root directory
+app.use('/Areamanager', express.static('./Areamanager'));
+app.use('/propertyowner', express.static('./propertyowner'));
+app.use('/tenant', express.static('./tenant'));
+app.use('/superadmin', express.static('./superadmin'));
+app.use('/images', express.static('./images'));
+app.use('/js', express.static('./js'));
+
 // Database Connection
 mongoose.connect(process.env.MONGO_URI)
     .then(() => console.log('MongoDB Connected'))
@@ -35,4 +44,21 @@ app.use('/api/rooms', require('./roomhy-backend/routes/roomRoutes'));
 app.use('/api/notifications', require('./roomhy-backend/routes/notificationRoutes'));
 
 const PORT = process.env.PORT || 5000;
+// Ensure root path serves the main index (helps platforms like Render)
+const path = require('path');
+
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+// Fallback: serve index.html for any unknown route (useful for SPA or direct links)
+app.get('*', (req, res) => {
+    const indexPath = path.join(__dirname, 'index.html');
+    if (require('fs').existsSync(indexPath)) {
+        res.sendFile(indexPath);
+    } else {
+        res.status(404).send('Not Found');
+    }
+});
+
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
