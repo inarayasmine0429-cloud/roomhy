@@ -497,6 +497,7 @@
                 cities.push({ id: 'ct_' + Date.now(), name, state, status: 'Active' });
                 localStorage.setItem('roomhy_cities', JSON.stringify(cities));
                 loadCities();
+                notifyLocationChange();
 
             } else {
                 const city = document.getElementById('parentCitySelect').value;
@@ -507,10 +508,24 @@
                 areas.push({ id: 'ar_' + Date.now(), name, city, pincode, status: 'Active' });
                 localStorage.setItem('roomhy_areas', JSON.stringify(areas));
                 loadAreas();
+                notifyLocationChange();
             }
 
             toggleModal('addLocationModal');
             alert(`${type === 'city' ? 'City' : 'Area'} Added Successfully!`);
+        }
+
+        // Broadcast location change to other tabs and same-tab listeners
+        function notifyLocationChange(){
+            try{
+                if(typeof BroadcastChannel !== 'undefined'){
+                    const ch = new BroadcastChannel('roomhy_locations');
+                    ch.postMessage({ type: 'locations-updated', timestamp: Date.now() });
+                    ch.close();
+                }
+            }catch(e){/* ignore */}
+            // Also write timestamp to localStorage for same-tab listeners
+            try{ localStorage.setItem('roomhy_locations_updated_at', Date.now().toString()); }catch(e){}
         }
 
         function deleteCity(id) {

@@ -174,31 +174,37 @@
     <script>
         lucide.createIcons();
         let selectedFiles = [];
-        let myAreaCode = ''; // Store logged in area code
+        let myArea = ''; // Store logged in area (e.g., "Koramangala", "Bangalore")
+        let isAreaManager = false; // Track if user is area manager or employee
 
-        // Auth Check & UI Population - prefer manager_user then fall back to user
+        // Auth Check & UI Population
         document.addEventListener('DOMContentLoaded', () => {
             const user = JSON.parse(localStorage.getItem('manager_user') || localStorage.getItem('user') || 'null');
             
-            if (user && user.role === 'areamanager') {
-                // Update Header
-                document.getElementById('headerName').innerText = user.name;
-                document.getElementById('headerRole').innerText = `${user.areaName} Manager`;
-                
-                // Store Area Code for filtering
-                myAreaCode = user.areaCode;
-                
-                // Update Modal Pre-fill
-                const locInput = document.getElementById('visitLocCode');
-                if(locInput) locInput.value = myAreaCode;
-
-                loadVisits();
-            } else {
-                // Fallback demo
-                console.log("Demo mode: Defaulting to KO");
-                myAreaCode = 'KO';
-                loadVisits();
+            if (!user) {
+                console.log("Not logged in");
+                return;
             }
+
+            // Update Header
+            document.getElementById('headerName').innerText = user.name;
+            
+            if (user.role === 'areamanager') {
+                isAreaManager = true;
+                document.getElementById('headerRole').innerText = `${user.areaName || 'Area'} Manager`;
+                // Area managers can see all properties (no filter)
+                myArea = '';
+            } else if (user.role === 'employee' && user.area) {
+                isAreaManager = false;
+                document.getElementById('headerRole').innerText = `${user.area} Team Member`;
+                // Employees only see their assigned area
+                myArea = user.area;
+            } else {
+                console.log("Demo mode");
+                myArea = '';
+            }
+
+            loadVisits();
         });
 
         document.getElementById('photoInput').addEventListener('change', (e) => {
@@ -210,21 +216,28 @@
             document.getElementById('fileCount').innerText = `${selectedFiles.length} files selected`;
         });
 
-        // Fetch Visits (Filtered by Area Code)
+        // Fetch Visits (Filtered by Employee's Assigned Area or All for Area Managers)
         function loadVisits() {
             const visits = JSON.parse(localStorage.getItem('roomhy_visits') || '[]');
             const tbody = document.getElementById('visitsTableBody');
             tbody.innerHTML = '';
 
-            // FILTER: Only show visits where locationCode matches current manager's area
-            const myVisits = visits.filter(v => v.propertyInfo.locationCode === myAreaCode);
+            // FILTER: If employee, only show visits in their assigned area. If area manager, show all.
+            let filteredVisits = visits;
+            if (!isAreaManager && myArea) {
+                filteredVisits = visits.filter(v => {
+                    // Match by area name (new way) or by propertyArea
+                    return v.propertyArea === myArea || (v.propertyInfo && v.propertyInfo.area === myArea);
+                });
+            }
 
-            if (myVisits.length === 0) {
-                 tbody.innerHTML = `<tr><td colspan="8" class="text-center py-8 text-gray-500">No visits found for ${myAreaCode}. Add one to start.</td></tr>`;
+            if (filteredVisits.length === 0) {
+                const msg = myArea ? `No visits found for ${myArea}.` : 'No visits found.';
+                tbody.innerHTML = `<tr><td colspan="8" class="text-center py-8 text-gray-500">${msg} Add one to start.</td></tr>`;
                  return;
             }
 
-            myVisits.forEach(visit => {
+            filteredVisits.forEach(visit => {
                 const date = new Date(visit.submittedAt).toLocaleDateString();
                 const prop = visit.propertyInfo;
                 const address = prop.address || '-';
@@ -280,16 +293,18 @@
             }));
             const base64Photos = await Promise.all(photoPromises);
 
-            // Ensure location code matches manager's area
+            // Capture employee's assigned area
+            const user = JSON.parse(localStorage.getItem('manager_user') || localStorage.getItem('user') || 'null');
+            const assignedArea = (user && user.area) ? user.area : 'Unassigned';
+
+            // For employees, validation check is optional (they can only submit for their area anyway via the form pre-fill)
             const submittedLocCode = fd.get('locationCode');
-            if(submittedLocCode !== myAreaCode) {
-                alert(`You can only submit visits for your area: ${myAreaCode}`);
-                return;
-            }
 
             const newVisit = {
                 _id: 'v_' + Date.now(),
                 submittedAt: new Date().toISOString(),
+                submittedBy: user ? user.name : 'Unknown',
+                propertyArea: assignedArea, // Store assigned area for filtering
                 propertyInfo: {
                     name: fd.get('name'),
                     ownerName: fd.get('ownerName'),

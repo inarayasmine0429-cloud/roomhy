@@ -140,9 +140,11 @@
                 name: emp.name,
                 role: 'employee',
                 team: emp.role, // "Marketing Team", etc.
+                area: emp.area || 'Unassigned', // Assigned area (e.g., "Bangalore", "Koramangala")
+                city: emp.city || '',
                 permissions: emp.permissions || [],
                 areaCode: 'TEAM', // Identifier for dashboard
-                areaName: emp.role // Display Team Name
+                areaName: emp.area || emp.role // Display assigned area, fallback to team name
             };
 
             // Store in common key

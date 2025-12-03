@@ -155,20 +155,33 @@
         document.addEventListener('DOMContentLoaded', () => {
             const user = JSON.parse(localStorage.getItem('manager_user') || localStorage.getItem('user') || 'null');
             
+            let myAreaCode = ''; // For backward compatibility
+            let myArea = ''; // New: assigned area name
+            let isAreaManager = false;
+
             if (user && user.role === 'areamanager') {
+                isAreaManager = true;
                 document.getElementById('headerName').innerText = user.name;
-                document.getElementById('userAreaBadge').innerText = `${user.areaName} (${user.areaCode})`;
-                myAreaCode = user.areaCode;
-                loadAreaProperties();
+                document.getElementById('userAreaBadge').innerText = user.areaName || 'All Areas';
+                myAreaCode = user.areaCode || '';
+                myArea = '';
+                loadAreaProperties(myAreaCode, myArea, isAreaManager);
+            } else if (user && user.role === 'employee' && user.area) {
+                isAreaManager = false;
+                document.getElementById('headerName').innerText = user.name;
+                document.getElementById('userAreaBadge').innerText = user.area;
+                myArea = user.area;
+                myAreaCode = '';
+                loadAreaProperties(myAreaCode, myArea, isAreaManager);
             } else {
-                console.log("Demo mode - defaulting to KO");
+                console.log("Demo mode - defaulting to all properties");
                 myAreaCode = 'KO';
                 document.getElementById('userAreaBadge').innerText = "Koramangala (KO)";
-                loadAreaProperties();
+                loadAreaProperties(myAreaCode, myArea, false);
             }
         });
 
-        async function loadAreaProperties() {
+        async function loadAreaProperties(areaCode, areaName, isAreaManager) {
             // Read from roomhy_visits
             const visits = JSON.parse(localStorage.getItem('roomhy_visits') || '[]');
             const approvedProps = visits
@@ -177,6 +190,7 @@
                     id: v._id,
                     title: v.propertyInfo.name,
                     locationCode: v.propertyInfo.locationCode,
+                    propertyArea: v.propertyArea || areaName, // Use stored area from visit
                     ownerName: v.propertyInfo.ownerName || 'Generated Owner',
                     phone: v.propertyInfo.contactPhone,
                     address: v.propertyInfo.address || '-', 
@@ -184,18 +198,25 @@
                     imageBase64: v.imageBase64,
                     status: 'active'
                 }));
-            renderFilteredProperties(approvedProps);
+            renderFilteredProperties(approvedProps, areaCode, areaName, isAreaManager);
         }
 
-        function renderFilteredProperties(props) {
+        function renderFilteredProperties(props, areaCode, areaName, isAreaManager) {
             const tbody = document.getElementById('areaPropertiesTableBody');
             tbody.innerHTML = '';
 
-            // Filter by logged-in manager's area code
-            const myProps = props.filter(p => (p.locationCode || '').toUpperCase() === myAreaCode);
+            // Filter by area: employees see only their area, area managers see all
+            let myProps = props;
+            if (!isAreaManager && areaName) {
+                myProps = props.filter(p => p.propertyArea === areaName);
+            } else if (areaCode) {
+                // Backward compatibility: filter by area code if area manager has one
+                myProps = props.filter(p => (p.locationCode || '').toUpperCase() === areaCode);
+            }
 
             if (myProps.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="8" class="text-center py-8 text-gray-500">No properties found for area code ${myAreaCode}.</td></tr>`;
+                const msg = areaName ? `No properties found for ${areaName}.` : (areaCode ? `No properties found for ${areaCode}.` : 'No properties found.');
+                tbody.innerHTML = `<tr><td colspan="8" class="text-center py-8 text-gray-500">${msg}</td></tr>`;
                 return;
             }
 

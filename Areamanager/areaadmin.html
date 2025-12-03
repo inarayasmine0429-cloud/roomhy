@@ -135,10 +135,18 @@
 
             // Header Info
             document.getElementById('roleLabel').innerText = user.role === 'areamanager' ? 'AREA ADMIN' : 'TEAM MEMBER';
-            document.getElementById('headerRole').innerText = user.area || user.role; // Display assigned Area
+            
+            // Display assigned area if employee, otherwise show role
+            if (user.role === 'employee' && user.area) {
+                document.getElementById('headerRole').innerText = user.area; // Show assigned area
+                document.getElementById('headerAreaBadge').innerText = user.area; // Show in badge
+            } else {
+                document.getElementById('headerRole').innerText = user.role;
+                document.getElementById('headerAreaBadge').innerText = user.area || 'Global';
+            }
+            
             document.getElementById('headerName').innerText = user.name;
             document.getElementById('welcomeName').innerText = user.name;
-            document.getElementById('headerAreaBadge').innerText = user.area || 'Global';
 
             // Iframe Cleanup
             const frame = document.getElementById('contentFrame');
