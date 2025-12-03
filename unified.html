@@ -30,11 +30,13 @@
         .btn-primary:hover { background: linear-gradient(135deg, #5568d3 0%, #6a3f91 100%); }
         .input-focus:focus { box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1); }
         .error-msg { color: #dc2626; font-size: 0.875rem; margin-top: 0.5rem; }
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.5); display: flex; align-items: center; justify-content: center; z-index: 50; }
+        .modal-content { background: white; border-radius: 16px; padding: 2rem; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3); max-width: 500px; width: 90%; max-height: 90vh; overflow-y: auto; }
     </style>
 </head>
 <body class="flex items-center justify-center p-4">
 
-    <div class="card-light w-full max-w-md p-8">
+    <div class="card-light w-full max-w-md p-8" id="login-container">
         <div class="text-center mb-8">
             <div class="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-purple-500 to-purple-700 rounded-lg mb-4">
                 <i data-lucide="building-2" class="w-8 h-8 text-white"></i>
@@ -85,8 +87,174 @@
         </div>
     </div>
 
+    <!-- Set Password Modal (for Property Owners) -->
+    <div id="set-password-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div class="text-center mb-6">
+                <div class="inline-flex items-center justify-center w-14 h-14 bg-purple-100 rounded-lg mb-4">
+                    <i data-lucide="lock" class="w-7 h-7 text-purple-600"></i>
+                </div>
+                <h2 class="text-2xl font-bold text-gray-900 mb-2">Set Your Password</h2>
+                <p class="text-gray-600 text-sm">Create a secure password for future logins</p>
+            </div>
+
+            <form onsubmit="event.preventDefault(); handleSetPassword();">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">New Password</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400"><i data-lucide="key" class="w-5 h-5"></i></span>
+                        <input 
+                            type="password" 
+                            class="input-focus w-full pl-10 p-3 border border-gray-300 rounded-lg focus:ring-purple-500 outline-none" 
+                            id="new-password" 
+                            placeholder="Min 6 characters" 
+                            required
+                        >
+                    </div>
+                </div>
+
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Confirm Password</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400"><i data-lucide="key" class="w-5 h-5"></i></span>
+                        <input 
+                            type="password" 
+                            class="input-focus w-full pl-10 p-3 border border-gray-300 rounded-lg focus:ring-purple-500 outline-none" 
+                            id="confirm-password" 
+                            placeholder="••••••••" 
+                            required
+                        >
+                    </div>
+                    <div id="password-error" class="error-msg hidden"></div>
+                </div>
+
+                <button type="submit" class="btn-primary w-full text-white font-bold py-3 rounded-lg transition-all flex justify-center items-center gap-2">
+                    Continue <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Profile Update Modal -->
+    <div id="profile-update-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div class="text-center mb-6">
+                <div class="inline-flex items-center justify-center w-14 h-14 bg-blue-100 rounded-lg mb-4">
+                    <i data-lucide="user-check" class="w-7 h-7 text-blue-600"></i>
+                </div>
+                <h2 class="text-2xl font-bold text-gray-900 mb-2">Complete Your Profile</h2>
+                <p class="text-gray-600 text-sm">Help us verify your information</p>
+            </div>
+
+            <form onsubmit="event.preventDefault(); handleProfileUpdate();">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400"><i data-lucide="phone" class="w-5 h-5"></i></span>
+                        <input 
+                            type="tel" 
+                            class="input-focus w-full pl-10 p-3 border border-gray-300 rounded-lg focus:ring-purple-500 outline-none" 
+                            id="profile-phone" 
+                            placeholder="+91 98765 43210" 
+                            required
+                        >
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Address</label>
+                    <textarea 
+                        class="input-focus w-full p-3 border border-gray-300 rounded-lg focus:ring-purple-500 outline-none" 
+                        id="profile-address" 
+                        placeholder="Property address" 
+                        rows="3" 
+                        required
+                    ></textarea>
+                </div>
+
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">City</label>
+                    <input 
+                        type="text" 
+                        class="input-focus w-full p-3 border border-gray-300 rounded-lg focus:ring-purple-500 outline-none" 
+                        id="profile-city" 
+                        placeholder="City" 
+                        required
+                    >
+                </div>
+
+                <button type="submit" class="btn-primary w-full text-white font-bold py-3 rounded-lg transition-all flex justify-center items-center gap-2">
+                    Continue <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- KYC Verification Modal -->
+    <div id="kyc-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div class="text-center mb-6">
+                <div class="inline-flex items-center justify-center w-14 h-14 bg-green-100 rounded-lg mb-4">
+                    <i data-lucide="shield-check" class="w-7 h-7 text-green-600"></i>
+                </div>
+                <h2 class="text-2xl font-bold text-gray-900 mb-2">KYC Verification</h2>
+                <p class="text-gray-600 text-sm">Upload documents to complete verification</p>
+            </div>
+
+            <form onsubmit="event.preventDefault(); handleKYC();">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Aadhar Number</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400"><i data-lucide="id-card" class="w-5 h-5"></i></span>
+                        <input 
+                            type="text" 
+                            class="input-focus w-full pl-10 p-3 border border-gray-300 rounded-lg focus:ring-purple-500 outline-none" 
+                            id="kyc-aadhar" 
+                            placeholder="XXXX XXXX XXXX" 
+                            maxlength="12"
+                            required
+                        >
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">PAN Number (Optional)</label>
+                    <input 
+                        type="text" 
+                        class="input-focus w-full p-3 border border-gray-300 rounded-lg focus:ring-purple-500 outline-none" 
+                        id="kyc-pan" 
+                        placeholder="AAAA0000A"
+                    >
+                </div>
+
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Document Upload</label>
+                    <input 
+                        type="file" 
+                        class="w-full p-3 border border-gray-300 rounded-lg focus:ring-purple-500 outline-none" 
+                        id="kyc-document"
+                        accept="image/*,application/pdf"
+                        title="Upload KYC document"
+                    >
+                    <p class="text-xs text-gray-500 mt-2">JPG, PNG, or PDF (Max 5MB)</p>
+                </div>
+
+                <button type="submit" class="btn-primary w-full text-white font-bold py-3 rounded-lg transition-all flex justify-center items-center gap-2">
+                    Complete & Continue <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                </button>
+            </form>
+
+            <button onclick="skipKYC()" class="w-full mt-3 py-2 text-purple-600 font-medium text-sm hover:bg-purple-50 rounded-lg transition">
+                Skip for Now
+            </button>
+        </div>
+    </div>
+
     <script>
         lucide.createIcons();
+        
+        // Store temp owner data during flow
+        let tempOwnerData = null;
 
         function handleLogin() {
             const loginId = document.getElementById('login-id').value.trim();
@@ -116,12 +284,144 @@
 
             // 4. Property Owner (ROOMHY)
             if (upperId.startsWith('ROOMHY')) {
-                // Redirect to dedicated owner login logic (or reuse propertyowner/ownerlogin.html)
-                window.location.href = 'propertyowner/ownerlogin.html';
+                loginPropertyOwner(upperId, password, errorMsg);
                 return;
             }
 
             showError('Invalid ID format.', errorMsg);
+        }
+
+        // --- Property Owner Login Flow ---
+        function loginPropertyOwner(loginId, tempPassword, errorMsg) {
+            const owners = JSON.parse(localStorage.getItem('roomhy_owners_db') || '[]');
+            const owner = owners.find(o => o.loginId === loginId && o.password === tempPassword);
+
+            if (!owner) {
+                showError('Invalid Owner ID or password.', errorMsg);
+                return;
+            }
+
+            // Store temp owner data
+            tempOwnerData = { ...owner, loginId };
+
+            // Check if password has been set before (first login only)
+            if (!owner.passwordSet) {
+                // First login - show password reset modal
+                showModal('set-password-modal');
+            } else {
+                // Already set - go directly to profile
+                showModal('profile-update-modal');
+            }
+        }
+
+        function handleSetPassword() {
+            const newPass = document.getElementById('new-password').value.trim();
+            const confirmPass = document.getElementById('confirm-password').value.trim();
+            const errorEl = document.getElementById('password-error');
+            errorEl.classList.add('hidden');
+
+            if (newPass.length < 6) {
+                showError('Password must be at least 6 characters.', errorEl);
+                return;
+            }
+
+            if (newPass !== confirmPass) {
+                showError('Passwords do not match.', errorEl);
+                return;
+            }
+
+            // Update owner with new password and mark as set
+            const owners = JSON.parse(localStorage.getItem('roomhy_owners_db') || '[]');
+            const idx = owners.findIndex(o => o.loginId === tempOwnerData.loginId);
+            if (idx !== -1) {
+                owners[idx].password = newPass;
+                owners[idx].passwordSet = true;
+                localStorage.setItem('roomhy_owners_db', JSON.stringify(owners));
+                tempOwnerData.password = newPass;
+                tempOwnerData.passwordSet = true;
+            }
+
+            // Clear form
+            document.getElementById('new-password').value = '';
+            document.getElementById('confirm-password').value = '';
+
+            // Close password modal and show profile update modal
+            hideModal('set-password-modal');
+            showModal('profile-update-modal');
+        }
+
+        function handleProfileUpdate() {
+            const phone = document.getElementById('profile-phone').value.trim();
+            const address = document.getElementById('profile-address').value.trim();
+            const city = document.getElementById('profile-city').value.trim();
+
+            if (!phone || !address || !city) {
+                alert('Please fill all fields');
+                return;
+            }
+
+            // Update owner profile
+            const owners = JSON.parse(localStorage.getItem('roomhy_owners_db') || '[]');
+            const idx = owners.findIndex(o => o.loginId === tempOwnerData.loginId);
+            if (idx !== -1) {
+                owners[idx].phone = phone;
+                owners[idx].address = address;
+                owners[idx].city = city;
+                owners[idx].profileUpdated = true;
+                localStorage.setItem('roomhy_owners_db', JSON.stringify(owners));
+                tempOwnerData = { ...owners[idx], loginId: tempOwnerData.loginId };
+            }
+
+            // Close profile modal and show KYC modal
+            hideModal('profile-update-modal');
+            showModal('kyc-modal');
+        }
+
+        function handleKYC() {
+            const aadhar = document.getElementById('kyc-aadhar').value.trim();
+            const pan = document.getElementById('kyc-pan').value.trim();
+
+            if (!aadhar || aadhar.length < 12) {
+                alert('Please enter a valid Aadhar number');
+                return;
+            }
+
+            // Update owner KYC
+            const owners = JSON.parse(localStorage.getItem('roomhy_owners_db') || '[]');
+            const idx = owners.findIndex(o => o.loginId === tempOwnerData.loginId);
+            if (idx !== -1) {
+                owners[idx].aadhar = aadhar;
+                owners[idx].pan = pan;
+                owners[idx].kycVerified = 'pending';
+                localStorage.setItem('roomhy_owners_db', JSON.stringify(owners));
+                tempOwnerData = { ...owners[idx], loginId: tempOwnerData.loginId };
+            }
+
+            // Complete login and redirect to dashboard
+            completeOwnerLogin();
+        }
+
+        function skipKYC() {
+            // Skip KYC for now and redirect to dashboard
+            completeOwnerLogin();
+        }
+
+        function completeOwnerLogin() {
+            // Create session for owner
+            const user = {
+                loginId: tempOwnerData.loginId,
+                name: tempOwnerData.name,
+                email: tempOwnerData.email,
+                phone: tempOwnerData.phone || '',
+                role: 'owner',
+                ownerArea: tempOwnerData.area || 'Unassigned'
+            };
+
+            localStorage.setItem('user', JSON.stringify(user));
+            hideModal('kyc-modal');
+
+            // Redirect to owner dashboard
+            window.location.href = 'propertyowner/admin.html';
         }
 
         // --- Logic for Employees ---
@@ -176,9 +476,19 @@
             } else showError('Invalid Manager credentials.', errorMsg);
         }
 
+        // --- Utility Functions ---
         function showError(msg, errorMsg) {
             errorMsg.textContent = msg;
             errorMsg.classList.remove('hidden');
+        }
+
+        function showModal(modalId) {
+            document.getElementById(modalId).classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function hideModal(modalId) {
+            document.getElementById(modalId).classList.add('hidden');
         }
     </script>
 </body>
