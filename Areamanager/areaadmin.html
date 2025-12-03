@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Roomhy - Dashboard</title>
+    <title>Roomhy - Area Admin Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -22,79 +22,86 @@
 <body class="text-slate-800">
     
     <script>
-        // --- EARLY ROLE VALIDATION ---
-        // Check user role immediately to prevent unauthorized access
-        const userStr = localStorage.getItem('user');
-        const managerStr = localStorage.getItem('manager_user');
-        
-        let user = null;
-        try {
-            user = userStr ? JSON.parse(userStr) : null;
-            if (!user) {
-                user = managerStr ? JSON.parse(managerStr) : null;
-            }
-        } catch (e) {
-            user = null;
-        }
-        
-        // If no user or wrong role, redirect immediately
-        if (!user || (user.role !== 'areamanager' && user.role !== 'employee')) {
-            // Redirect to appropriate login or panel
-            if (user && user.role === 'owner') {
-                window.location.href = '../propertyowner/admin.html';
-            } else if (user && user.role === 'superadmin') {
-                window.location.href = '../superadmin/superadmin.html';
-            } else {
-                window.location.href = '../index.html';
-            }
-            throw new Error('Unauthorized access');
-        }
-
-        // --- DYNAMIC PERMISSION & SIDEBAR LOGIC ---
+        // --- Safe Redirect Helper ---
         function safeRedirect(url) {
-            try { window.location.href = url; } 
-            catch (e) { document.body.innerHTML = `<div class="flex items-center justify-center h-screen bg-gray-100"><a href="${url}" class="bg-purple-600 text-white px-6 py-3 rounded-lg">Click to Login</a></div>`; }
+            try {
+                window.location.href = url;
+            } catch (e) {
+                console.warn("Redirect blocked:", e);
+                document.body.innerHTML = `
+                    <div class="flex flex-col items-center justify-center h-screen bg-gray-100">
+                        <div class="bg-white p-8 rounded-xl shadow-lg text-center max-w-md">
+                            <h2 class="text-xl font-bold text-gray-800 mb-2">Navigation Required</h2>
+                            <p class="text-gray-500 mb-6">Please click below to proceed.</p>
+                            <a href="${url}" class="block w-full bg-purple-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-purple-700 transition">
+                                Proceed
+                            </a>
+                        </div>
+                    </div>
+                `;
+            }
         }
 
-        // 1. Config for ALL possible modules
+        // --- EARLY AUTH CHECK (RUN IMMEDIATELY) ---
+        // Get user from localStorage
+        const user = JSON.parse(localStorage.getItem('user') || 'null');
+        const managerUser = JSON.parse(localStorage.getItem('manager_user') || 'null');
+        
+        // Determine which user to use
+        const currentUser = user || managerUser;
+        
+        // Check if user is authorized to access this panel
+        // Only areamanager and employee roles allowed
+        if (!currentUser || (currentUser.role !== 'areamanager' && currentUser.role !== 'employee')) {
+            // User is not authorized - redirect to appropriate panel
+            if (currentUser && currentUser.role === 'owner') {
+                safeRedirect('../propertyowner/admin.html');
+            } else if (currentUser && currentUser.role === 'superadmin') {
+                safeRedirect('../superadmin/superadmin.html');
+            } else {
+                // No valid user - redirect to login
+                safeRedirect('../index.html');
+            }
+            throw new Error("Unauthorized Access");
+        }
+
+        // --- DYNAMIC PERMISSION LOGIC ---
         const sidebarConfig = {
-            // Core (Conditional)
+            // Core Modules (Permission Based)
             'properties': { label: 'Properties', page: 'areaproperty.html', icon: 'home' },
             'visits': { label: 'Visit Reports', page: 'visit.html', icon: 'clipboard-list' },
             'tenants': { label: 'Tenants', page: 'areatenant.html', icon: 'users' },
             'owners': { label: 'Owners', page: 'areaowner.html', icon: 'briefcase' },
             'payments': { label: 'Payments', page: 'areapayment.html', icon: 'wallet' },
             'complaints': { label: 'Complaints', page: 'complaint.html', icon: 'alert-circle' },
-            'kyc': { label: 'KYC Verify', page: 'areakyc.html', icon: 'file-check' },
+            'kyc': { label: 'KYC Verification', page: 'areakyc.html', icon: 'file-check' },
             'enquiries': { label: 'Enquiries', page: 'areaenq.html', icon: 'help-circle' },
+            'finance': { label: 'Finance', page: '../superadmin/platform.html', icon: 'dollar-sign' },
+            'security': { label: 'Security', page: '../superadmin/security.html', icon: 'shield' },
             
-            // DEFAULTS (Always Visible)
+            // Default Modules (Always Visible)
             'dashboard': { label: 'Dashboard', page: 'dashboard_home', icon: 'layout-dashboard' },
             'chat': { label: 'Chat', page: 'areachat.html', icon: 'message-square' },
             'reports': { label: 'Reports', page: 'areareport.html', icon: 'bar-chart-2' },
             'settings': { label: 'Settings', page: 'setting.html', icon: 'settings' }
         };
 
-        // 2. Defaults are enforced here
-        const defaultModules = ['dashboard', 'chat', 'reports', 'settings'];
-        
+        // These permissions are ALWAYS granted
+        const mandatoryPermissions = ['dashboard', 'chat', 'reports', 'settings'];
+
         let allowedModules = [];
 
-        if (user && user.role === 'areamanager') {
-            // Full Access
+        if (currentUser.role === 'areamanager') {
             allowedModules = Object.keys(sidebarConfig);
-        } else if (user && user.role === 'employee') {
-            // Permissions from DB + Forced Defaults
-            const assigned = user.permissions || [];
-            // Merge assigned permissions with required defaults
-            allowedModules = [...new Set([...assigned, ...defaultModules])];
+        } else if (currentUser.role === 'employee') {
+            const assigned = currentUser.permissions || [];
+            allowedModules = [...new Set([...assigned, ...mandatoryPermissions])];
         }
 
         function createLink(id) {
             const config = sidebarConfig[id];
             if (!config) return '';
-            // Check if allowed
-            if (!allowedModules.includes(id)) return '';
+            if (!allowedModules.includes(id)) return ''; 
 
             const isActive = config.page === 'dashboard_home' ? 'active' : '';
             return `
@@ -126,31 +133,28 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-            if (!user) return; 
             const nav = document.getElementById('dynamicSidebarNav');
             let html = '';
 
-            // Render Structure
-            // 1. Dashboard (Always top)
+            // 1. Dashboard
             html += createLink('dashboard');
 
-            // 2. Management (Conditional)
+            // 2. Management
             const mgmt = ['properties', 'visits', 'tenants', 'owners'];
             if(mgmt.some(id => allowedModules.includes(id))) {
                 html += `<div class="px-6 pb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mt-4">Management</div>`;
                 mgmt.forEach(id => html += createLink(id));
             }
 
-            // 3. Operations (Conditional)
-            const ops = ['payments', 'complaints', 'kyc', 'enquiries'];
+            // 3. Operations
+            const ops = ['payments', 'complaints', 'kyc', 'enquiries', 'finance'];
             if(ops.some(id => allowedModules.includes(id))) {
                 html += `<div class="px-6 pb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mt-4">Operations</div>`;
                 ops.forEach(id => html += createLink(id));
             }
 
-            // 4. System (Default + Conditional)
-            // Chat, Reports, Settings are forced defaults
-            const sys = ['chat', 'reports', 'settings']; 
+            // 4. System
+            const sys = ['chat', 'location', 'reports', 'settings', 'security'];
             html += `<div class="px-6 pb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mt-4">System</div>`;
             sys.forEach(id => html += createLink(id));
 
@@ -158,21 +162,16 @@
             lucide.createIcons();
 
             // Header Info
-            document.getElementById('roleLabel').innerText = user.role === 'areamanager' ? 'AREA ADMIN' : 'TEAM MEMBER';
-            
-            // Display assigned area if employee, otherwise show role
-            if (user.role === 'employee' && user.area) {
-                document.getElementById('headerRole').innerText = user.area; // Show assigned area
-                document.getElementById('headerAreaBadge').innerText = user.area; // Show in badge
-            } else {
-                document.getElementById('headerRole').innerText = user.role;
-                document.getElementById('headerAreaBadge').innerText = user.area || 'Global';
-            }
-            
-            document.getElementById('headerName').innerText = user.name;
-            document.getElementById('welcomeName').innerText = user.name;
+            document.getElementById('roleLabel').innerText = currentUser.role === 'areamanager' ? 'AREA ADMIN' : 'TEAM MEMBER';
+            document.getElementById('headerRole').innerText = currentUser.area || currentUser.role; 
+            document.getElementById('headerName').innerText = currentUser.name;
+            document.getElementById('welcomeName').innerText = currentUser.name;
+            document.getElementById('headerAreaBadge').innerText = currentUser.area || 'Global';
 
-            // Iframe Cleanup
+            // Hide salary for employees
+            if(currentUser.role === 'employee') document.getElementById('salaryBadge').style.display = 'none';
+            
+            // Iframe Cleaner
             const frame = document.getElementById('contentFrame');
             frame.addEventListener('load', function() {
                 try {
@@ -181,12 +180,15 @@
                     if(innerSidebar) innerSidebar.style.display = 'none';
                     const innerHeader = innerDoc.querySelector('header');
                     if(innerHeader) innerHeader.style.display = 'none';
+                    const innerMobile = innerDoc.getElementById('mobile-menu-open');
+                    if(innerMobile) innerMobile.style.display = 'none';
                 } catch (e) {}
             });
         });
     </script>
 
     <div class="flex h-screen overflow-hidden">
+        <!-- Sidebar -->
         <aside class="sidebar w-72 flex-shrink-0 hidden md:flex flex-col z-20 overflow-y-auto custom-scrollbar">
             <div class="h-16 flex items-center px-6 border-b border-gray-800 sticky top-0 bg-[#111827] z-10">
                  <div class="flex items-center gap-3">
@@ -194,10 +196,15 @@
                      <div><h1 class="text-xl font-bold text-white">RoomHy</h1><span class="text-[10px] text-gray-500 font-medium tracking-wider" id="roleLabel">AREA ADMIN</span></div>
                  </div>
             </div>
-            <nav class="flex-1 py-6 space-y-1" id="dynamicSidebarNav"></nav>
+            <!-- Dynamic Sidebar -->
+            <nav class="flex-1 py-6 space-y-1" id="dynamicSidebarNav">
+                <!-- Javascript fills this -->
+            </nav>
         </aside>
 
+        <!-- Main Content -->
         <div class="flex-1 flex flex-col overflow-hidden bg-[#f3f4f6]">
+            <!-- Header -->
             <header class="bg-white h-16 flex items-center justify-between px-6 shadow-sm z-10 border-b border-gray-200">
                 <div class="flex items-center">
                     <button id="mobile-menu-open" class="md:hidden mr-4 text-slate-500"><i data-lucide="menu" class="w-6 h-6"></i></button>
@@ -223,46 +230,64 @@
                 </div>
             </header>
 
+            <!-- Dashboard Content Area -->
             <div class="flex-1 overflow-hidden relative">
+                
+                <!-- 1. Dashboard View (Default) -->
                 <main id="dashboard-view" class="h-full overflow-y-auto p-4 md:p-8">
                     <div class="max-w-[1600px] mx-auto">
+                        
                         <div class="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
                             <div>
                                 <h1 class="text-2xl font-bold text-slate-800">Welcome, <span id="welcomeName">User</span>!</h1>
                                 <p class="text-sm text-slate-500 mt-1">Viewing <span id="welcomeArea" class="font-semibold text-purple-600">Dashboard</span>.</p>
                             </div>
+                            <div id="salaryBadge" class="bg-white px-4 py-2 rounded-lg shadow-sm border border-gray-200 text-right hidden md:block">
+                                <p class="text-xs text-gray-500 uppercase font-semibold tracking-wider">Current Salary</p>
+                                <p class="text-lg font-bold text-green-600">₹ 45,000</p>
+                            </div>
                         </div>
+
+                        <!-- Dynamic Widgets -->
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                             <!-- Dynamic Widgets will appear if allowed -->
-                             <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition cursor-pointer" onclick="if(allowedModules.includes('properties')) loadPage('areaproperty.html', this)">
+                            <!-- These will only show if the permission exists in myPermissions list -->
+                            
+                            <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition cursor-pointer" onclick="if(allowedModules.includes('properties')) loadPage('areaproperty.html', this)">
                                 <div class="flex items-center gap-4">
                                     <div class="p-3 bg-blue-50 rounded-lg text-blue-600"><i data-lucide="home" class="w-6 h-6"></i></div>
-                                    <div><h3 class="font-bold text-slate-800">Properties</h3><p class="text-xs text-gray-500">Quick Access</p></div>
+                                    <div><h3 class="font-bold text-slate-800">Properties</h3><p class="text-xs text-gray-500">Manage Listings</p></div>
                                 </div>
                             </div>
-                             <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition cursor-pointer" onclick="if(allowedModules.includes('tenants')) loadPage('areatenant.html', this)">
+
+                            <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition cursor-pointer" onclick="if(allowedModules.includes('tenants')) loadPage('areatenant.html', this)">
                                 <div class="flex items-center gap-4">
                                     <div class="p-3 bg-green-50 rounded-lg text-green-600"><i data-lucide="users" class="w-6 h-6"></i></div>
-                                    <div><h3 class="font-bold text-slate-800">Tenants</h3><p class="text-xs text-gray-500">Quick Access</p></div>
+                                    <div><h3 class="font-bold text-slate-800">Tenants</h3><p class="text-xs text-gray-500">Active Residents</p></div>
                                 </div>
                             </div>
-                             <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition cursor-pointer" onclick="if(allowedModules.includes('chat')) loadPage('areachat.html', this)">
+
+                            <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition cursor-pointer" onclick="if(allowedModules.includes('complaints')) loadPage('complaint.html', this)">
                                 <div class="flex items-center gap-4">
-                                    <div class="p-3 bg-purple-50 rounded-lg text-purple-600"><i data-lucide="message-square" class="w-6 h-6"></i></div>
-                                    <div><h3 class="font-bold text-slate-800">Chat</h3><p class="text-xs text-gray-500">Quick Access</p></div>
+                                    <div class="p-3 bg-red-50 rounded-lg text-red-600"><i data-lucide="alert-circle" class="w-6 h-6"></i></div>
+                                    <div><h3 class="font-bold text-slate-800">Complaints</h3><p class="text-xs text-gray-500">View Issues</p></div>
                                 </div>
                             </div>
                         </div>
+                        
                         <div class="mt-8 p-8 bg-white rounded-xl border border-gray-200 text-center">
                             <h3 class="text-lg font-medium text-gray-800">Select a module from the sidebar</h3>
-                            <p class="text-gray-500 text-sm mt-1">Your access is controlled by your assigned Area role.</p>
+                            <p class="text-gray-500 text-sm mt-1">Your access is tailored to your Team role and Area.</p>
                         </div>
+
                     </div>
                 </main>
+
+                <!-- 2. Iframe View (Hidden by default) -->
                 <iframe id="contentFrame" class="hidden" src=""></iframe>
             </div>
         </div>
         
+        <!-- Mobile Sidebar Overlay -->
         <div id="mobile-overlay" class="fixed inset-0 bg-black/50 z-30 hidden md:hidden backdrop-blur-sm" onclick="toggleMobileMenu()"></div>
         <aside id="mobile-sidebar" class="fixed inset-y-0 left-0 w-72 bg-[#111827] z-40 transform -translate-x-full transition-transform duration-300 md:hidden flex flex-col overflow-y-auto">
              <nav class="flex-1 py-4 space-y-1 px-2">
@@ -276,13 +301,19 @@
             e.preventDefault();
             localStorage.removeItem('user');
             localStorage.removeItem('manager_user');
-            safeRedirect('../index.html');
+            safeRedirect('../unifiedlogin.html');
         });
+
         function toggleMobileMenu() {
             const sb = document.getElementById('mobile-sidebar');
             const ov = document.getElementById('mobile-overlay');
-            if (sb.classList.contains('-translate-x-full')) { sb.classList.remove('-translate-x-full'); ov.classList.remove('hidden'); } 
-            else { sb.classList.add('-translate-x-full'); ov.classList.add('hidden'); }
+            if (sb.classList.contains('-translate-x-full')) {
+                sb.classList.remove('-translate-x-full');
+                ov.classList.remove('hidden');
+            } else {
+                sb.classList.add('-translate-x-full');
+                ov.classList.add('hidden');
+            }
         }
         document.getElementById('mobile-menu-open').addEventListener('click', toggleMobileMenu);
     </script>

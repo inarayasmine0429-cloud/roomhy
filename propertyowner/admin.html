@@ -21,35 +21,30 @@
 </head>
 <body class="text-slate-800">
     <script>
-        // Early role validation
+        // Early role validation (MUST RUN FIRST)
         const userStr = localStorage.getItem('user');
-        let user = null;
+        let currentUser = null;
         try {
-            user = userStr ? JSON.parse(userStr) : null;
+            currentUser = userStr ? JSON.parse(userStr) : null;
         } catch (e) {
-            user = null;
+            currentUser = null;
         }
         
         // Redirect if not owner
-        if (!user || user.role !== 'owner') {
-            if (user && user.role === 'areamanager') {
+        if (!currentUser || currentUser.role !== 'owner') {
+            if (currentUser && currentUser.role === 'areamanager') {
                 window.location.href = '../Areamanager/areaadmin.html';
-            } else if (user && user.role === 'employee') {
+            } else if (currentUser && currentUser.role === 'employee') {
                 window.location.href = '../Areamanager/areaadmin.html';
-            } else if (user && user.role === 'superadmin') {
+            } else if (currentUser && currentUser.role === 'superadmin') {
                 window.location.href = '../superadmin/superadmin.html';
             } else {
                 window.location.href = '../index.html';
             }
+            throw new Error("Unauthorized");
         }
         
-        // Session validation for Property Owner
-        function checkSession() {
-            checkOwnerSession();
-        }
-        
-        // Check session on page load
-        document.addEventListener('DOMContentLoaded', checkSession);
+        // User is authorized - continue loading the page
     </script>
 
     <div class="flex h-screen overflow-hidden">
