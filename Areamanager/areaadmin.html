@@ -22,27 +22,38 @@
 <body class="text-slate-800">
     
     <script>
-        // --- DYNAMIC PERMISSION & SIDEBAR LOGIC ---
-        const user = JSON.parse(localStorage.getItem('user') || localStorage.getItem('manager_user') || 'null');
+        // --- EARLY ROLE VALIDATION ---
+        // Check user role immediately to prevent unauthorized access
+        const userStr = localStorage.getItem('user');
+        const managerStr = localStorage.getItem('manager_user');
         
+        let user = null;
+        try {
+            user = userStr ? JSON.parse(userStr) : null;
+            if (!user) {
+                user = managerStr ? JSON.parse(managerStr) : null;
+            }
+        } catch (e) {
+            user = null;
+        }
+        
+        // If no user or wrong role, redirect immediately
+        if (!user || (user.role !== 'areamanager' && user.role !== 'employee')) {
+            // Redirect to appropriate login or panel
+            if (user && user.role === 'owner') {
+                window.location.href = '../propertyowner/admin.html';
+            } else if (user && user.role === 'superadmin') {
+                window.location.href = '../superadmin/superadmin.html';
+            } else {
+                window.location.href = '../index.html';
+            }
+            throw new Error('Unauthorized access');
+        }
+
+        // --- DYNAMIC PERMISSION & SIDEBAR LOGIC ---
         function safeRedirect(url) {
             try { window.location.href = url; } 
             catch (e) { document.body.innerHTML = `<div class="flex items-center justify-center h-screen bg-gray-100"><a href="${url}" class="bg-purple-600 text-white px-6 py-3 rounded-lg">Click to Login</a></div>`; }
-        }
-
-        if (!user) safeRedirect('../index.html');
-        
-        // Prevent property owners and super admins from accessing area manager panel
-        if (user.role === 'owner') {
-            localStorage.removeItem('user');
-            localStorage.removeItem('manager_user');
-            safeRedirect('../propertyowner/admin.html');
-        }
-        
-        if (user.role === 'superadmin') {
-            localStorage.removeItem('user');
-            localStorage.removeItem('manager_user');
-            safeRedirect('../superadmin/superadmin.html');
         }
 
         // 1. Config for ALL possible modules

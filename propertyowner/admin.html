@@ -21,6 +21,28 @@
 </head>
 <body class="text-slate-800">
     <script>
+        // Early role validation
+        const userStr = localStorage.getItem('user');
+        let user = null;
+        try {
+            user = userStr ? JSON.parse(userStr) : null;
+        } catch (e) {
+            user = null;
+        }
+        
+        // Redirect if not owner
+        if (!user || user.role !== 'owner') {
+            if (user && user.role === 'areamanager') {
+                window.location.href = '../Areamanager/areaadmin.html';
+            } else if (user && user.role === 'employee') {
+                window.location.href = '../Areamanager/areaadmin.html';
+            } else if (user && user.role === 'superadmin') {
+                window.location.href = '../superadmin/superadmin.html';
+            } else {
+                window.location.href = '../index.html';
+            }
+        }
+        
         // Session validation for Property Owner
         function checkSession() {
             checkOwnerSession();
