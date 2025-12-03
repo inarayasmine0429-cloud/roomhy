@@ -31,6 +31,7 @@
         .input-focus:focus { box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1); }
         .error-msg { color: #dc2626; font-size: 0.875rem; margin-top: 0.5rem; }
         .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.5); display: flex; align-items: center; justify-content: center; z-index: 50; }
+        .modal-overlay.hidden { display: none !important; pointer-events: none; }
         .modal-content { background: white; border-radius: 16px; padding: 2rem; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3); max-width: 500px; width: 90%; max-height: 90vh; overflow-y: auto; }
     </style>
 </head>
@@ -140,6 +141,11 @@
         
         // Store temp owner data during flow
         let tempOwnerData = null;
+
+        // Ensure modals are hidden on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('set-password-modal').classList.add('hidden');
+        });
 
         function handleLogin() {
             const loginId = document.getElementById('login-id').value.trim();
@@ -335,6 +341,14 @@
         function hideModal(modalId) {
             document.getElementById(modalId).classList.add('hidden');
         }
+
+        // Reset all modals and form on page focus to avoid stale state
+        window.addEventListener('focus', () => {
+            document.getElementById('set-password-modal').classList.add('hidden');
+            document.getElementById('login-id').value = '';
+            document.getElementById('login-password').value = '';
+            document.getElementById('error-msg').classList.add('hidden');
+        });
     </script>
 </body>
 </html>
