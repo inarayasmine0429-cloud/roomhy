@@ -358,12 +358,21 @@
             document.getElementById(modalId).classList.add('hidden');
         }
 
-        // Reset all modals and form on page focus to avoid stale state
-        window.addEventListener('focus', () => {
-            document.getElementById('set-password-modal').classList.add('hidden');
-            document.getElementById('login-id').value = '';
-            document.getElementById('login-password').value = '';
-            document.getElementById('error-msg').classList.add('hidden');
+        // Reset modals and form only when returning from another page
+        let hasLeftPage = false;
+        window.addEventListener('beforeunload', () => {
+            hasLeftPage = true;
+        });
+        
+        window.addEventListener('pageshow', (event) => {
+            if (hasLeftPage && event.persisted) {
+                // User came back from another page
+                document.getElementById('set-password-modal').classList.add('hidden');
+                document.getElementById('login-id').value = '';
+                document.getElementById('login-password').value = '';
+                document.getElementById('error-msg').classList.add('hidden');
+                hasLeftPage = false;
+            }
         });
     </script>
 </body>
