@@ -85,12 +85,26 @@ function checkSessionWithRole(requiredRole) {
  * Check if Super Admin session is valid
  */
 function checkSuperAdminSession() {
-    const user = JSON.parse(localStorage.getItem('user') || 'null');
-    const superadminUser = JSON.parse(localStorage.getItem('superadmin_user') || 'null');
+    // Prefer sessionStorage (per-tab), fallback to localStorage, then check again after small delay (Render fix)
+    let user = JSON.parse(
+        sessionStorage.getItem('user') ||
+        localStorage.getItem('user') ||
+        'null'
+    );
     
-    if (!user || !superadminUser || user.role !== 'superadmin') {
-        alert('Please login as Super Admin first.');
-        window.location.href = '../unifiedlogin.html';
+    // If still not found on Render, wait and check again (sometimes localStorage takes time to load)
+    if (!user || user.role !== 'superadmin') {
+        setTimeout(() => {
+            user = JSON.parse(
+                sessionStorage.getItem('user') ||
+                localStorage.getItem('user') ||
+                'null'
+            );
+            if (!user || user.role !== 'superadmin') {
+                alert('Please login as Super Admin first.');
+                window.location.href = '../index.html';
+            }
+        }, 100);
         return false;
     }
     
@@ -103,7 +117,7 @@ function checkSuperAdminSession() {
  */
 function checkAreaManagerSession() {
     const user = JSON.parse(localStorage.getItem('user') || 'null');
-    const managerUser = JSON.parse(localStorage.getItem('manager_user') || 'null');
+    const managerUser = JSON.parse(sessionStorage.getItem('manager_user') || sessionStorage.getItem('user') || localStorage.getItem('manager_user') || localStorage.getItem('user') || 'null');
     
     if (!user || !managerUser || user.role !== 'areamanager') {
         alert('Please login as Area Manager first.');
@@ -119,9 +133,9 @@ function checkAreaManagerSession() {
  * Check if Owner session is valid
  */
 function checkOwnerSession() {
-    const user = JSON.parse(localStorage.getItem('user') || 'null');
+    const owner = getCurrentOwner();
     
-    if (!user || user.role !== 'owner') {
+    if (!owner) {
         alert('Please login as Property Owner first.');
         window.location.href = '../unifiedlogin.html';
         return false;
@@ -129,6 +143,23 @@ function checkOwnerSession() {
     
     initializeSessionTracking();
     return true;
+}
+
+/**
+ * Get the current owner session (prefers per-tab sessionStorage)
+ * Returns parsed owner object or null
+ */
+function getCurrentOwner() {
+    try {
+        const ownerSession = JSON.parse(sessionStorage.getItem('owner_session') || 'null');
+        const sessionUser = JSON.parse(sessionStorage.getItem('user') || 'null');
+        const localUser = JSON.parse(localStorage.getItem('user') || 'null');
+        const candidate = ownerSession || sessionUser || localUser || null;
+        if (candidate && candidate.role === 'owner') return candidate;
+    } catch (err) {
+        console.warn('getCurrentOwner parse error', err);
+    }
+    return null;
 }
 
 /**
