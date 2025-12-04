@@ -279,7 +279,7 @@
                 .then(updated => {
                     console.log('✅ Owner password updated on backend:', updated.loginId);
                     const sessionUser = { loginId: pendingUser.id, role: 'owner', ownerId: pendingUser.id, name: updated.name || 'Owner' };
-                    completeLogin(sessionUser, 'propertyowner/admin.html');
+                    completeLogin(sessionUser, 'propertyowner/ownerprofile.html');
                 })
                 .catch(err => {
                     console.warn('Backend update failed, using localStorage only:', err.message);
@@ -292,7 +292,7 @@
                     
                     const owner = db[pendingUser.id];
                     const sessionUser = { loginId: pendingUser.id, role: 'owner', ownerId: pendingUser.id, name: owner.profile?.name || 'Owner' };
-                    completeLogin(sessionUser, 'propertyowner/admin.html');
+                    completeLogin(sessionUser, 'propertyowner/ownerprofile.html');
                 });
             } catch (err) {
                 console.warn('Exception updating password, using localStorage:', err.message);
@@ -305,7 +305,7 @@
                 
                 const owner = db[pendingUser.id];
                 const sessionUser = { loginId: pendingUser.id, role: 'owner', ownerId: pendingUser.id, name: owner.profile?.name || 'Owner' };
-                completeLogin(sessionUser, 'propertyowner/admin.html');
+                completeLogin(sessionUser, 'propertyowner/ownerprofile.html');
             }
         } else if (pendingUser.role === 'tenant') {
             const tenants = JSON.parse(localStorage.getItem('roomhy_tenants') || '[]');
