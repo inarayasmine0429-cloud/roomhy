@@ -131,18 +131,14 @@
             console.log('👤 Looking for owner:', id, '- Found:', !!owner);
 
             if (!owner) {
-                console.warn('❌ Owner not found, retrying in 200ms...');
-                // Retry after small delay (Render fix - sometimes localStorage takes time to load)
-                setTimeout(() => {
-                    const retryDb = JSON.parse(localStorage.getItem('roomhy_owners_db') || '{}');
-                    console.log('🔄 Retry - roomhy_owners_db:', retryDb);
-                    const retryOwner = retryDb[id];
-                    if (!retryOwner) {
-                        console.error('❌ Still not found after retry');
-                        return showError('Owner ID not found. Please check if enquiry was approved.');
-                    }
-                }, 200);
-                return;
+                console.warn('❌ Owner not found. Available owners:', Object.keys(db).join(', '));
+                // Show user what owners are available
+                const availableIds = Object.keys(db);
+                if (availableIds.length === 0) {
+                    return showError('No owners registered yet. Please ask Super Admin to approve your enquiry first.');
+                } else {
+                    return showError(`Owner ID not found. Available: ${availableIds.join(', ')}`);
+                }
             }
             
             // Check Creds
