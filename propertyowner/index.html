@@ -153,34 +153,41 @@
         console.log('🔍 Login attempt for ID:', id);
 
         // ---------------------------------------------------------
-        // 1. PROPERTY OWNER LOGIN CHECK
+        // 1. PROPERTY OWNER CHECK (ANY ID Format)
         // ---------------------------------------------------------
-        // Note: We check if this ID exists as an owner in our DB/API first.
-        // This allows IDs like "KO01" (Backend) or "ROOMHY001" (Frontend Sim) to both work.
+        // Previously we restricted this to 'ROOMHY' prefix. 
+        // Now we check if the ID exists as an owner regardless of prefix.
         
         let owner = null;
+        let isOwnerFound = false;
 
-        // Try fetching from backend API
+        // Step A: Check API
         try {
             const res = await fetch(`/api/owners/${encodeURIComponent(id)}`);
-            if (res.ok) owner = await res.json();
+            if (res.ok) {
+                owner = await res.json();
+                isOwnerFound = true;
+            }
         } catch (err) {
             console.warn('🌐 API fetch failed or not available, checking localStorage');
         }
 
-        // Fallback to localStorage if not found via API
-        if (!owner) {
+        // Step B: Check LocalStorage (Fallback)
+        if (!isOwnerFound) {
             const db = JSON.parse(localStorage.getItem('roomhy_owners_db') || '{}');
-            owner = db[id] || null;
+            if (db[id]) {
+                owner = db[id];
+                isOwnerFound = true;
+            }
         }
 
         // IF OWNER FOUND: Process Owner Login
-        if (owner) {
+        if (isOwnerFound && owner) {
             const storedPass = (owner.credentials && owner.credentials.password) || owner.password; 
 
             if (storedPass === pass) {
-                // CHECK 1: Is this First Time? (Temp Password Used)
-                // If firstTime flag is true OR passwordSet flag is false/undefined
+                // CHECK: Is this First Time? (Temp Password Used)
+                // If firstTime flag is true OR passwordSet flag is missing/false
                 const isFirstTime = (owner.credentials && owner.credentials.firstTime === true);
                 const isPasswordNotSet = (owner.passwordSet !== true);
 
@@ -195,14 +202,15 @@
                     loginId: id, 
                     role: 'owner', 
                     ownerId: id, 
-                    name: (owner.profile && owner.profile.name) || owner.name || 'Owner' 
+                    name: (owner.profile && owner.profile.name) || owner.name || 'Owner',
+                    locationCode: (owner.profile && owner.profile.locationCode) || owner.locationCode || ''
                 };
                 
                 sessionStorage.setItem('owner_session', JSON.stringify(sessionUser));
                 localStorage.setItem('owner_session', JSON.stringify(sessionUser));
                 localStorage.setItem('user', JSON.stringify(sessionUser)); // Generic user key
                 
-                // CHECK 2: Onboarding Status
+                // Determine redirect based on Onboarding Status
                 const isProfileIncomplete = !owner.profile || !owner.profile.email || !owner.profile.address;
                 const isKycPending = !owner.kyc || owner.kyc.status === 'pending';
 
@@ -222,7 +230,7 @@
         }
 
         // ---------------------------------------------------------
-        // 2. TENANT LOGIN CHECK
+        // 2. TENANT CHECK (If not an Owner)
         // ---------------------------------------------------------
         const tenants = JSON.parse(localStorage.getItem('roomhy_tenants') || '[]');
         const tenant = tenants.find(t => (t.loginId && t.loginId.toUpperCase() === id) || (t.email && t.email.toUpperCase() === id));
@@ -231,14 +239,14 @@
             const storedPass = tenant.password || tenant.tempPassword; 
             
             if (storedPass === pass) {
-                // CHECK 1: Is this First Time?
+                // CHECK: First Time Login?
                 if (tenant.tempPassword && tenant.tempPassword === pass) {
                     pendingUser = { id: tenant.loginId, role: 'tenant', type: 'tenant' };
                     showSetPass();
                     return;
                 }
                 
-                // CHECK 2: Onboarding Status
+                // Success
                 const sessionUser = { 
                     loginId: tenant.loginId, 
                     role: 'tenant', 
@@ -248,9 +256,9 @@
                 
                 sessionStorage.setItem('tenant_session', JSON.stringify(sessionUser));
                 localStorage.setItem('tenant_session', JSON.stringify(sessionUser));
-                localStorage.setItem('user', JSON.stringify(sessionUser)); // Generic user key
+                localStorage.setItem('user', JSON.stringify(sessionUser)); 
 
-                // FIXED: Paths relative to parent folder since tenant files are in root or sibling folder
+                // Determine redirect
                 if (!tenant.profileFilled) {
                     completeLogin(sessionUser, '../tenantprofile.html');
                 } else if (tenant.kycStatus === 'pending') {
@@ -301,9 +309,8 @@
         // UPDATE PASSWORD IN DB
         if (pendingUser.role === 'owner') {
             const pendingId = pendingUser.id;
-            const db = JSON.parse(localStorage.getItem('roomhy_owners_db') || '{}');
             
-            // Try API Update first (if connected)
+            // Try API Update first
             fetch(`/api/owners/${encodeURIComponent(pendingId)}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
@@ -311,37 +318,24 @@
                     credentials: { password: p1, firstTime: false },
                     passwordSet: true 
                 })
-            }).catch(e => console.log('API update failed, using local storage fallback'));
+            })
+            .then(res => {
+                 if (!res.ok) {
+                     // If API fails (e.g. 500 error), throw to catch block for local fallback
+                     throw new Error("API Error");
+                 }
+                 return res.json();
+            })
+            .then(updated => {
+                 // API Success: proceed to update local storage to match and login
+                 updateLocalOwnerAndLogin(pendingId, p1);
+            })
+            .catch(e => {
+                console.log('API update failed or offline, using local storage fallback');
+                // Fallback: Update LocalStorage Only
+                updateLocalOwnerAndLogin(pendingId, p1);
+            });
 
-            // Update LocalStorage
-            if (db[pendingId]) {
-                db[pendingId].credentials = { password: p1, firstTime: false }; 
-                db[pendingId].passwordSet = true;
-                localStorage.setItem('roomhy_owners_db', JSON.stringify(db));
-                
-                // Auto-login
-                const sessionUser = {
-                    loginId: pendingId,
-                    role: 'owner',
-                    ownerId: pendingId,
-                    name: (db[pendingId].profile && db[pendingId].profile.name) || db[pendingId].name || 'Owner'
-                };
-                
-                // CRITICAL FIX: Ensure owner_session is set, otherwise admin.html kicks user out
-                sessionStorage.setItem('owner_session', JSON.stringify(sessionUser));
-                localStorage.setItem('owner_session', JSON.stringify(sessionUser));
-                localStorage.setItem('user', JSON.stringify(sessionUser));
-                
-                // Determine redirect based on profile completeness
-                let redirectUrl = 'admin.html';
-                const isProfileIncomplete = !db[pendingId].profile || !db[pendingId].profile.email || !db[pendingId].profile.address;
-                const isKycPending = !db[pendingId].kyc || db[pendingId].kyc.status === 'pending';
-                
-                if (isProfileIncomplete) redirectUrl = 'ownerprofile.html';
-                else if (isKycPending) redirectUrl = 'ownerkyc.html';
-                
-                window.location.href = redirectUrl;
-            }
         } else if (pendingUser.role === 'tenant') {
             const pendingId = pendingUser.id;
             const tenants = JSON.parse(localStorage.getItem('roomhy_tenants') || '[]');
@@ -357,6 +351,45 @@
                 resetView();
                 document.getElementById('login-id').value = pendingId;
             }
+        }
+    }
+
+    // Helper to update local storage and login owner (Called by both API success and Fallback)
+    function updateLocalOwnerAndLogin(pendingId, newPassword) {
+        const db = JSON.parse(localStorage.getItem('roomhy_owners_db') || '{}');
+        
+        if (db[pendingId]) {
+            db[pendingId].credentials = { password: newPassword, firstTime: false }; 
+            db[pendingId].passwordSet = true;
+            localStorage.setItem('roomhy_owners_db', JSON.stringify(db));
+            
+            // Auto-login
+            const sessionUser = {
+                loginId: pendingId,
+                role: 'owner',
+                ownerId: pendingId,
+                name: (db[pendingId].profile && db[pendingId].profile.name) || db[pendingId].name || 'Owner'
+            };
+            
+            // CRITICAL: Set session so admin.html doesn't kick user
+            sessionStorage.setItem('owner_session', JSON.stringify(sessionUser));
+            localStorage.setItem('owner_session', JSON.stringify(sessionUser));
+            localStorage.setItem('user', JSON.stringify(sessionUser));
+            
+            // Determine redirect
+            let redirectUrl = 'admin.html';
+            const isProfileIncomplete = !db[pendingId].profile || !db[pendingId].profile.email || !db[pendingId].profile.address;
+            const isKycPending = !db[pendingId].kyc || db[pendingId].kyc.status === 'pending';
+            
+            if (isProfileIncomplete) redirectUrl = 'ownerprofile.html';
+            else if (isKycPending) redirectUrl = 'ownerkyc.html';
+            
+            window.location.href = redirectUrl;
+        } else {
+            // Edge case: User exists in API (maybe) but not local storage? 
+            // If so, we can't login locally. Just reset view.
+            alert("Password updated. Please login.");
+            resetView();
         }
     }
 
