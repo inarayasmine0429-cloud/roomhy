@@ -116,25 +116,38 @@
         const errorBox = document.getElementById('error-msg');
         errorBox.classList.add('hidden');
 
+        console.log('🔍 Login attempt for ID:', id);
+        
         // 1. Try Property Owner Login
         if (id.startsWith('ROOMHY')) {
-            const db = JSON.parse(localStorage.getItem('roomhy_owners_db') || '{}');
+            const rawDb = localStorage.getItem('roomhy_owners_db');
+            console.log('📦 roomhy_owners_db raw:', rawDb);
+            
+            const db = JSON.parse(rawDb || '{}');
+            console.log('📦 roomhy_owners_db parsed:', db);
+            console.log('🔑 Available owner IDs:', Object.keys(db));
+            
             const owner = db[id];
+            console.log('👤 Looking for owner:', id, '- Found:', !!owner);
 
             if (!owner) {
+                console.warn('❌ Owner not found, retrying in 200ms...');
                 // Retry after small delay (Render fix - sometimes localStorage takes time to load)
                 setTimeout(() => {
                     const retryDb = JSON.parse(localStorage.getItem('roomhy_owners_db') || '{}');
+                    console.log('🔄 Retry - roomhy_owners_db:', retryDb);
                     const retryOwner = retryDb[id];
                     if (!retryOwner) {
-                        return showError('Owner ID not found.');
+                        console.error('❌ Still not found after retry');
+                        return showError('Owner ID not found. Please check if enquiry was approved.');
                     }
-                }, 100);
+                }, 200);
                 return;
             }
             
             // Check Creds
             const storedPass = owner.credentials?.password || owner.password; // Legacy support
+            console.log('🔐 Stored password exists:', !!storedPass, '- Matches input:', storedPass === pass);
             
             if (storedPass === pass) {
                 // Check if First Time
@@ -148,6 +161,7 @@
                 const sessionUser = { loginId: id, role: 'owner', ownerId: id, name: owner.profile?.name || 'Owner' };
                 sessionStorage.setItem('owner_session', JSON.stringify(sessionUser));
                 localStorage.setItem('owner_session', JSON.stringify(sessionUser));
+                console.log('✅ Owner login successful:', id);
                 completeLogin(sessionUser, 'propertyowner/admin.html');
                 return;
             } else {
