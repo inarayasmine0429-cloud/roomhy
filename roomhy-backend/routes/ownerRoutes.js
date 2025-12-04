@@ -25,12 +25,19 @@ router.post('/', async (req, res) => {
 router.get('/:loginId', async (req, res) => {
     try {
         console.log('🔍 Owner GET request for:', req.params.loginId);
+        console.log('📌 Searching in database...');
         const owner = await Owner.findOne({ loginId: req.params.loginId });
         if (!owner) {
-            console.log('⚠️ Owner not found:', req.params.loginId);
-            return res.status(404).json({ error: 'Owner not found' });
+            console.log('⚠️ Owner not found in DB for loginId:', req.params.loginId);
+            // Also check if there are any owners at all
+            const allOwners = await Owner.find({});
+            console.log('📊 Total owners in DB:', allOwners.length);
+            if (allOwners.length > 0) {
+                console.log('🔎 First few owners:', allOwners.slice(0, 3).map(o => ({ loginId: o.loginId, id: o._id })));
+            }
+            return res.status(404).json({ error: 'Owner not found', loginId: req.params.loginId });
         }
-        console.log('✅ Owner found:', owner.loginId);
+        console.log('✅ Owner found:', owner.loginId, 'with ID:', owner._id);
         res.json(owner);
     } catch (err) {
         console.error('❌ Owner GET error:', err.message);
@@ -41,21 +48,34 @@ router.get('/:loginId', async (req, res) => {
 // Update owner by loginId (PATCH for password updates)
 router.patch('/:loginId', async (req, res) => {
     try {
-        console.log('✏️ Owner PATCH request for:', req.params.loginId, 'payload:', req.body);
+        console.log('✏️ Owner PATCH request for:', req.params.loginId, 'payload:', JSON.stringify(req.body));
+        console.log('📌 Database: checking if owner exists before update...');
+        
+        // First check if owner exists
+        const existingOwner = await Owner.findOne({ loginId: req.params.loginId });
+        if (!existingOwner) {
+            console.log('⚠️ PATCH: Owner not found for update:', req.params.loginId);
+            return res.status(404).json({ error: 'Owner not found for update', loginId: req.params.loginId });
+        }
+        console.log('✅ PATCH: Found existing owner, current state:', JSON.stringify(existingOwner, null, 2));
+        
+        // Now update it
         const owner = await Owner.findOneAndUpdate(
             { loginId: req.params.loginId },
             { $set: req.body },
             { new: true }
         );
+        
         if (!owner) {
-            console.log('⚠️ Owner not found for update:', req.params.loginId);
-            return res.status(404).json({ error: 'Owner not found' });
+            console.error('❌ PATCH: findOneAndUpdate returned null (should not happen)');
+            return res.status(500).json({ error: 'Update failed to return document' });
         }
-        console.log('✅ Owner updated:', owner.loginId);
+        
+        console.log('✅ PATCH: Owner updated successfully. New state:', JSON.stringify(owner, null, 2));
         res.json(owner);
     } catch (err) {
-        console.error('❌ Owner PATCH error:', err.message);
-        res.status(500).json({ error: err.message });
+        console.error('❌ Owner PATCH error:', err.message, err.code);
+        res.status(500).json({ error: err.message, errorCode: err.code });
     }
 });
 

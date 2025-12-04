@@ -124,17 +124,21 @@
 
             // Try fetching from backend API
             try {
+                console.log('🌐 API: Fetching owner with loginId:', id);
                 const res = await fetch(`/api/owners/${encodeURIComponent(id)}`);
+                console.log('🌐 API: Response status:', res.status);
                 if (res.ok) {
                     owner = await res.json();
-                    console.log('🌐 Owner fetched from API:', owner.loginId || owner);
+                    console.log('🌐 API: Owner fetched successfully:', { loginId: owner.loginId, hasPassword: !!owner.credentials?.password });
                 } else if (res.status === 404) {
-                    console.log('🌐 Owner not found on API, will fallback to localStorage');
+                    const errData = await res.json();
+                    console.log('🌐 API: Owner not found (404), error:', errData);
                 } else {
-                    console.warn('🌐 Owner API returned status', res.status, ' — falling back to localStorage');
+                    const errData = await res.json();
+                    console.warn('🌐 API: Unexpected status', res.status, 'error:', errData);
                 }
             } catch (err) {
-                console.warn('🌐 Owner API fetch failed, falling back to localStorage:', err.message);
+                console.warn('🌐 API: Fetch failed (network/parse error):', err.message);
             }
 
             // Fallback to localStorage if API did not return owner
@@ -160,7 +164,7 @@
 
             // If owner object came from API, its structure is mongoose document; normalize to expected shape
             const storedPass = (owner.credentials && (owner.credentials.password || owner.credentials.tempPassword)) || owner.password || (owner.credentials && owner.credentials.password) || null;
-            console.log('🔐 Stored password exists:', !!storedPass, '- Matches input:', storedPass === pass);
+            console.log('🔐 Password check:', { hasStoredPass: !!storedPass, inputPassword: pass, match: storedPass === pass, firstTime: owner.credentials?.firstTime, passwordSet: owner.passwordSet });
 
             if (storedPass === pass) {
                 // Check if First Time
@@ -267,17 +271,19 @@
         if (pendingUser.role === 'owner') {
             // Update backend owner via API
             try {
+                console.log('📝 Attempting to update owner password for:', pendingUser.id);
                 fetch(`/api/owners/${encodeURIComponent(pendingUser.id)}`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ credentials: { password: p1 } })
                 })
                 .then(res => {
-                    if (!res.ok) throw new Error('API update failed');
+                    console.log('✏️ PATCH response status:', res.status);
+                    if (!res.ok) throw new Error(`API error: ${res.status}`);
                     return res.json();
                 })
                 .then(updated => {
-                    console.log('✅ Owner password updated on backend:', updated.loginId);
+                    console.log('✅ Owner password updated on backend. Updated doc:', JSON.stringify(updated, null, 2));
                     // Show success and reset to login form
                     alert('✅ Password set successfully! Please login with your new password.');
                     resetView();
@@ -286,7 +292,8 @@
                     pendingUser = null;
                 })
                 .catch(err => {
-                    console.warn('Backend update failed, using localStorage only:', err.message);
+                    console.error('❌ Backend PATCH failed:', err.message);
+                    console.warn('Using localStorage fallback');
                     // Fallback to localStorage
                     const db = JSON.parse(localStorage.getItem('roomhy_owners_db') || '{}');
                     if (!db[pendingUser.id]) db[pendingUser.id] = {};
@@ -302,7 +309,7 @@
                     pendingUser = null;
                 });
             } catch (err) {
-                console.warn('Exception updating password, using localStorage:', err.message);
+                console.error('❌ Exception in password update:', err.message);
                 // Fallback to localStorage
                 const db = JSON.parse(localStorage.getItem('roomhy_owners_db') || '{}');
                 if (!db[pendingUser.id]) db[pendingUser.id] = {};
