@@ -38,4 +38,25 @@ router.get('/:loginId', async (req, res) => {
     }
 });
 
+// Update owner by loginId (PATCH for password updates)
+router.patch('/:loginId', async (req, res) => {
+    try {
+        console.log('✏️ Owner PATCH request for:', req.params.loginId, 'payload:', req.body);
+        const owner = await Owner.findOneAndUpdate(
+            { loginId: req.params.loginId },
+            { $set: req.body },
+            { new: true }
+        );
+        if (!owner) {
+            console.log('⚠️ Owner not found for update:', req.params.loginId);
+            return res.status(404).json({ error: 'Owner not found' });
+        }
+        console.log('✅ Owner updated:', owner.loginId);
+        res.json(owner);
+    } catch (err) {
+        console.error('❌ Owner PATCH error:', err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 module.exports = router;

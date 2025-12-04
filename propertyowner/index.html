@@ -265,9 +265,41 @@
         }
 
         if (pendingUser.role === 'owner') {
-            const db = JSON.parse(localStorage.getItem('roomhy_owners_db') || '{}');
-            if (db[pendingUser.id]) {
-                db[pendingUser.id].credentials = { password: p1 }; // Remove firstTime flag implies false
+            // Update backend owner via API
+            try {
+                fetch(`/api/owners/${encodeURIComponent(pendingUser.id)}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ credentials: { password: p1 } })
+                })
+                .then(res => {
+                    if (!res.ok) throw new Error('API update failed');
+                    return res.json();
+                })
+                .then(updated => {
+                    console.log('✅ Owner password updated on backend:', updated.loginId);
+                    const sessionUser = { loginId: pendingUser.id, role: 'owner', ownerId: pendingUser.id, name: updated.name || 'Owner' };
+                    completeLogin(sessionUser, 'propertyowner/admin.html');
+                })
+                .catch(err => {
+                    console.warn('Backend update failed, using localStorage only:', err.message);
+                    // Fallback to localStorage
+                    const db = JSON.parse(localStorage.getItem('roomhy_owners_db') || '{}');
+                    if (!db[pendingUser.id]) db[pendingUser.id] = {};
+                    db[pendingUser.id].credentials = { password: p1 };
+                    db[pendingUser.id].passwordSet = true;
+                    localStorage.setItem('roomhy_owners_db', JSON.stringify(db));
+                    
+                    const owner = db[pendingUser.id];
+                    const sessionUser = { loginId: pendingUser.id, role: 'owner', ownerId: pendingUser.id, name: owner.profile?.name || 'Owner' };
+                    completeLogin(sessionUser, 'propertyowner/admin.html');
+                });
+            } catch (err) {
+                console.warn('Exception updating password, using localStorage:', err.message);
+                // Fallback to localStorage
+                const db = JSON.parse(localStorage.getItem('roomhy_owners_db') || '{}');
+                if (!db[pendingUser.id]) db[pendingUser.id] = {};
+                db[pendingUser.id].credentials = { password: p1 };
                 db[pendingUser.id].passwordSet = true;
                 localStorage.setItem('roomhy_owners_db', JSON.stringify(db));
                 
