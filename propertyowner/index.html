@@ -327,8 +327,31 @@
                  return res.json();
             })
             .then(updated => {
-                 // API Success: proceed to update local storage to match and login
-                 updateLocalOwnerAndLogin(pendingId, p1);
+                 // API Success: fetch fresh owner record from API to decide redirect correctly
+                 fetch(`/api/owners/${encodeURIComponent(pendingId)}`)
+                    .then(r => {
+                        if (!r.ok) throw new Error('Failed to fetch updated owner');
+                        return r.json();
+                    })
+                    .then(freshOwner => {
+                        // Update local DB if present and then login using freshOwner
+                        const db = JSON.parse(localStorage.getItem('roomhy_owners_db') || '{}');
+                        if (db[pendingId]) {
+                            db[pendingId].credentials = { password: p1, firstTime: false };
+                            db[pendingId].passwordSet = true;
+                            // copy profile/kyc from freshOwner to local db to keep in sync
+                            db[pendingId].profile = freshOwner.profile || db[pendingId].profile;
+                            db[pendingId].kyc = freshOwner.kyc || db[pendingId].kyc;
+                            localStorage.setItem('roomhy_owners_db', JSON.stringify(db));
+                        }
+                        // Auto-login using freshOwner data
+                        updateLocalOwnerAndLogin(pendingId, p1, freshOwner);
+                    })
+                    .catch(err => {
+                        // If fetching fresh owner fails, fallback to previous behaviour
+                        console.warn('Could not fetch fresh owner after PATCH:', err.message);
+                        updateLocalOwnerAndLogin(pendingId, p1);
+                    });
             })
             .catch(e => {
                 console.log('API update failed or offline, using local storage fallback');
@@ -355,39 +378,63 @@
     }
 
     // Helper to update local storage and login owner (Called by both API success and Fallback)
-    function updateLocalOwnerAndLogin(pendingId, newPassword) {
+    function updateLocalOwnerAndLogin(pendingId, newPassword, freshOwner) {
         const db = JSON.parse(localStorage.getItem('roomhy_owners_db') || '{}');
-        
+
+        // If freshOwner provided, use its profile/kyc when deciding redirect
+        const ownerRef = freshOwner || db[pendingId] || null;
+
         if (db[pendingId]) {
-            db[pendingId].credentials = { password: newPassword, firstTime: false }; 
+            db[pendingId].credentials = { password: newPassword, firstTime: false };
             db[pendingId].passwordSet = true;
+            if (freshOwner) {
+                db[pendingId].profile = freshOwner.profile || db[pendingId].profile;
+                db[pendingId].kyc = freshOwner.kyc || db[pendingId].kyc;
+            }
             localStorage.setItem('roomhy_owners_db', JSON.stringify(db));
-            
+
             // Auto-login
             const sessionUser = {
                 loginId: pendingId,
                 role: 'owner',
                 ownerId: pendingId,
-                name: (db[pendingId].profile && db[pendingId].profile.name) || db[pendingId].name || 'Owner'
+                name: (ownerRef && ownerRef.profile && ownerRef.profile.name) || (ownerRef && ownerRef.name) || 'Owner'
             };
-            
+
             // CRITICAL: Set session so admin.html doesn't kick user
             sessionStorage.setItem('owner_session', JSON.stringify(sessionUser));
             localStorage.setItem('owner_session', JSON.stringify(sessionUser));
             localStorage.setItem('user', JSON.stringify(sessionUser));
-            
-            // Determine redirect
+
+            // Determine redirect using freshOwner when available
             let redirectUrl = 'admin.html';
-            const isProfileIncomplete = !db[pendingId].profile || !db[pendingId].profile.email || !db[pendingId].profile.address;
-            const isKycPending = !db[pendingId].kyc || db[pendingId].kyc.status === 'pending';
-            
+            const isProfileIncomplete = !ownerRef || !ownerRef.profile || !ownerRef.profile.email || !ownerRef.profile.address;
+            const isKycPending = !ownerRef || !ownerRef.kyc || ownerRef.kyc.status === 'pending';
+
             if (isProfileIncomplete) redirectUrl = 'ownerprofile.html';
             else if (isKycPending) redirectUrl = 'ownerkyc.html';
-            
+
+            window.location.href = redirectUrl;
+        } else if (ownerRef) {
+            // Owner not in local DB but we have freshOwner from API: use it to login
+            const sessionUser = {
+                loginId: pendingId,
+                role: 'owner',
+                ownerId: pendingId,
+                name: (ownerRef.profile && ownerRef.profile.name) || ownerRef.name || 'Owner'
+            };
+            sessionStorage.setItem('owner_session', JSON.stringify(sessionUser));
+            localStorage.setItem('owner_session', JSON.stringify(sessionUser));
+            localStorage.setItem('user', JSON.stringify(sessionUser));
+
+            let redirectUrl = 'admin.html';
+            const isProfileIncomplete = !ownerRef.profile || !ownerRef.profile.email || !ownerRef.profile.address;
+            const isKycPending = !ownerRef.kyc || ownerRef.kyc.status === 'pending';
+            if (isProfileIncomplete) redirectUrl = 'ownerprofile.html';
+            else if (isKycPending) redirectUrl = 'ownerkyc.html';
             window.location.href = redirectUrl;
         } else {
-            // Edge case: User exists in API (maybe) but not local storage? 
-            // If so, we can't login locally. Just reset view.
+            // Edge case: no local DB and no freshOwner
             alert("Password updated. Please login.");
             resetView();
         }
