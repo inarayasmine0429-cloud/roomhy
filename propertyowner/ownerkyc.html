@@ -170,10 +170,27 @@
                     submittedAt: new Date().toISOString()
                 };
                 localStorage.setItem('roomhy_owners_db', JSON.stringify(db));
-                
+
+                // Refresh session and user objects so the app doesn't require re-login
+                try {
+                    const updated = db[user.loginId];
+                    const sessionUser = {
+                        loginId: updated.loginId || user.loginId,
+                        role: 'owner',
+                        ownerId: updated.loginId || user.loginId,
+                        name: (updated.profile && updated.profile.name) || updated.name || user.name || 'Owner'
+                    };
+                    sessionStorage.setItem('owner_session', JSON.stringify(sessionUser));
+                    localStorage.setItem('owner_session', JSON.stringify(sessionUser));
+                    // Also update generic 'user' key used by pages
+                    localStorage.setItem('user', JSON.stringify(sessionUser));
+                } catch (err) {
+                    console.warn('Failed to refresh session after KYC:', err.message);
+                }
+
                 // Success Animation
                 alert("🎉 Verification Submitted! Welcome to your Dashboard.");
-                
+
                 // Redirect to Dashboard (Flow Complete)
                 try {
                     window.location.href = 'admin.html';
