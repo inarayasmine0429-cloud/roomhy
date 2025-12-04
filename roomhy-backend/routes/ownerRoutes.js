@@ -62,8 +62,9 @@ router.patch('/:loginId', async (req, res) => {
         // If password is being updated, ensure credentials.firstTime is set to false and passwordSet is set to true
         let updatePayload = { ...req.body };
         if (updatePayload.credentials && updatePayload.credentials.password) {
-            updatePayload['credentials.firstTime'] = false;
-            updatePayload['passwordSet'] = true;
+            // Ensure credentials object has firstTime set to false
+            updatePayload.credentials.firstTime = false;
+            updatePayload.passwordSet = true;
         }
         const owner = await Owner.findOneAndUpdate(
             { loginId: req.params.loginId },
