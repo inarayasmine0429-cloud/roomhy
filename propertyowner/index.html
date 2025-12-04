@@ -275,7 +275,9 @@
                 fetch(`/api/owners/${encodeURIComponent(pendingUser.id)}`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ credentials: { password: p1 } })
+                    body: JSON.stringify({ 
+                        credentials: { password: p1, firstTime: false }
+                    })
                 })
                 .then(res => {
                     console.log('✏️ PATCH response status:', res.status);
@@ -297,7 +299,7 @@
                     // Fallback to localStorage
                     const db = JSON.parse(localStorage.getItem('roomhy_owners_db') || '{}');
                     if (!db[pendingUser.id]) db[pendingUser.id] = {};
-                    db[pendingUser.id].credentials = { password: p1 };
+                    db[pendingUser.id].credentials = { password: p1, firstTime: false };
                     db[pendingUser.id].passwordSet = true;
                     localStorage.setItem('roomhy_owners_db', JSON.stringify(db));
                     
@@ -313,7 +315,7 @@
                 // Fallback to localStorage
                 const db = JSON.parse(localStorage.getItem('roomhy_owners_db') || '{}');
                 if (!db[pendingUser.id]) db[pendingUser.id] = {};
-                db[pendingUser.id].credentials = { password: p1 };
+                db[pendingUser.id].credentials = { password: p1, firstTime: false };
                 db[pendingUser.id].passwordSet = true;
                 localStorage.setItem('roomhy_owners_db', JSON.stringify(db));
                 
