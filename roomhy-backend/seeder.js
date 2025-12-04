@@ -17,7 +17,6 @@ async function seedAdmin() {
         const existing = await User.findOne({ $or: [{ email: adminEmail }, { role: 'superadmin' }] });
         if (existing) {
             console.log('Seeder: superadmin already exists, skipping creation');
-            await mongoose.disconnect();
             return;
         }
 
@@ -29,10 +28,8 @@ async function seedAdmin() {
             role: 'superadmin'
         });
         console.log('Seeder: created superadmin:', adminEmail, 'password:', adminPassword);
-        await mongoose.disconnect();
     } catch (err) {
         console.error('Seeder error', err);
-        try { await mongoose.disconnect(); } catch(e){}
     }
 }
 
