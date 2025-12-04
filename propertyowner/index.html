@@ -48,12 +48,22 @@
 
         <!-- Login Form -->
         <div id="login-form" class="fade-in">
+            
+            <!-- Demo Credentials Hint -->
+            <div class="mb-6 bg-blue-50 border border-blue-100 rounded-lg p-3 text-xs text-blue-800">
+                <p class="font-bold mb-1">Demo Credentials (Auto-Generated):</p>
+                <div class="flex justify-between">
+                    <span>ID: <strong class="font-mono select-all">ROOMHY001</strong></span>
+                    <span>Pass: <strong class="font-mono select-all">password123</strong></span>
+                </div>
+            </div>
+
             <form onsubmit="event.preventDefault(); handleLogin();">
                 <div class="mb-4 input-group">
                     <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Login ID</label>
                     <div class="relative">
                         <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 transition-colors"><i data-lucide="user" class="w-5 h-5"></i></span>
-                        <input id="login-id" class="w-full pl-10 p-3 border border-gray-300 rounded-lg text-gray-700 outline-none transition-all" placeholder="ROOMHY... or TNT..." required>
+                        <input id="login-id" class="w-full pl-10 p-3 border border-gray-300 rounded-lg text-gray-700 outline-none transition-all" placeholder="ID (e.g. KO01, ROOMHY...)" required>
                     </div>
                 </div>
 
@@ -107,6 +117,27 @@
     // --- State ---
     let pendingUser = null; // Stores user info while setting password
 
+    // --- AUTO SEED DEMO OWNER ON LOAD ---
+    document.addEventListener('DOMContentLoaded', () => {
+        const db = JSON.parse(localStorage.getItem('roomhy_owners_db') || '{}');
+        if (Object.keys(db).length === 0 || !db['ROOMHY001']) {
+            db['ROOMHY001'] = {
+                profile: { 
+                    name: 'Demo Owner', 
+                    email: 'demo@roomhy.com', 
+                    phone: '9876543210', 
+                    address: '123 Demo St, Tech Park', 
+                    locationCode: 'KO' 
+                },
+                credentials: { password: 'password123', firstTime: false },
+                passwordSet: true,
+                kyc: { status: 'verified' }
+            };
+            localStorage.setItem('roomhy_owners_db', JSON.stringify(db));
+            console.log('🌱 Seeded Demo Owner: ROOMHY001 / password123');
+        }
+    });
+
     function showError(msg) {
         const box = document.getElementById("error-msg");
         box.textContent = msg;
@@ -122,41 +153,59 @@
         console.log('🔍 Login attempt for ID:', id);
 
         // ---------------------------------------------------------
-        // 1. PROPERTY OWNER LOGIN
+        // 1. PROPERTY OWNER LOGIN CHECK
         // ---------------------------------------------------------
-        if (id.startsWith('ROOMHY')) {
-            let owner = null;
-            // Fallback to localStorage
+        // Note: We check if this ID exists as an owner in our DB/API first.
+        // This allows IDs like "KO01" (Backend) or "ROOMHY001" (Frontend Sim) to both work.
+        
+        let owner = null;
+
+        // Try fetching from backend API
+        try {
+            const res = await fetch(`/api/owners/${encodeURIComponent(id)}`);
+            if (res.ok) owner = await res.json();
+        } catch (err) {
+            console.warn('🌐 API fetch failed or not available, checking localStorage');
+        }
+
+        // Fallback to localStorage if not found via API
+        if (!owner) {
             const db = JSON.parse(localStorage.getItem('roomhy_owners_db') || '{}');
             owner = db[id] || null;
+        }
 
-            if (!owner) {
-                return showError('Owner ID not found. Please contact Super Admin.');
-            }
-
-            // Determine which password to check
+        // IF OWNER FOUND: Process Owner Login
+        if (owner) {
             const storedPass = (owner.credentials && owner.credentials.password) || owner.password; 
 
             if (storedPass === pass) {
                 // CHECK 1: Is this First Time? (Temp Password Used)
-                if ((owner.credentials && owner.credentials.firstTime) || !owner.passwordSet) {
+                // If firstTime flag is true OR passwordSet flag is false/undefined
+                const isFirstTime = (owner.credentials && owner.credentials.firstTime === true);
+                const isPasswordNotSet = (owner.passwordSet !== true);
+
+                if (isFirstTime || isPasswordNotSet) {
                     pendingUser = { id: id, role: 'owner', type: 'owner' };
                     showSetPass();
                     return;
                 }
 
                 // Success - Normal Login
-                const sessionUser = { loginId: id, role: 'owner', ownerId: id, name: (owner.profile && owner.profile.name) || owner.name || 'Owner' };
+                const sessionUser = { 
+                    loginId: id, 
+                    role: 'owner', 
+                    ownerId: id, 
+                    name: (owner.profile && owner.profile.name) || owner.name || 'Owner' 
+                };
+                
                 sessionStorage.setItem('owner_session', JSON.stringify(sessionUser));
                 localStorage.setItem('owner_session', JSON.stringify(sessionUser));
-                // Also set generic user key for compatibility
-                localStorage.setItem('user', JSON.stringify(sessionUser));
+                localStorage.setItem('user', JSON.stringify(sessionUser)); // Generic user key
                 
                 // CHECK 2: Onboarding Status
                 const isProfileIncomplete = !owner.profile || !owner.profile.email || !owner.profile.address;
                 const isKycPending = !owner.kyc || owner.kyc.status === 'pending';
 
-                // FIXED: Removed 'propertyowner/' prefix since we are already inside that folder
                 let redirectUrl = 'admin.html'; 
 
                 if (isProfileIncomplete) {
@@ -168,12 +217,12 @@
                 completeLogin(sessionUser, redirectUrl);
                 return;
             } else {
-                return showError('Invalid password.');
+                return showError('Invalid password for Property Owner.');
             }
         }
 
         // ---------------------------------------------------------
-        // 2. TENANT LOGIN
+        // 2. TENANT LOGIN CHECK
         // ---------------------------------------------------------
         const tenants = JSON.parse(localStorage.getItem('roomhy_tenants') || '[]');
         const tenant = tenants.find(t => (t.loginId && t.loginId.toUpperCase() === id) || (t.email && t.email.toUpperCase() === id));
@@ -213,11 +262,11 @@
                 }
                 return;
             } else {
-                 return showError('Invalid password.');
+                 return showError('Invalid password for Tenant.');
             }
         }
         
-        showError('ID not recognized. Please check your credentials.');
+        showError('ID not recognized. Please check your credentials or try the Demo Owner ID.');
     }
 
     // --- Set Password Flow ---
@@ -254,6 +303,17 @@
             const pendingId = pendingUser.id;
             const db = JSON.parse(localStorage.getItem('roomhy_owners_db') || '{}');
             
+            // Try API Update first (if connected)
+            fetch(`/api/owners/${encodeURIComponent(pendingId)}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    credentials: { password: p1, firstTime: false },
+                    passwordSet: true 
+                })
+            }).catch(e => console.log('API update failed, using local storage fallback'));
+
+            // Update LocalStorage
             if (db[pendingId]) {
                 db[pendingId].credentials = { password: p1, firstTime: false }; 
                 db[pendingId].passwordSet = true;
@@ -272,7 +332,7 @@
                 localStorage.setItem('owner_session', JSON.stringify(sessionUser));
                 localStorage.setItem('user', JSON.stringify(sessionUser));
                 
-                // FIXED PATHS
+                // Determine redirect based on profile completeness
                 let redirectUrl = 'admin.html';
                 const isProfileIncomplete = !db[pendingId].profile || !db[pendingId].profile.email || !db[pendingId].profile.address;
                 const isKycPending = !db[pendingId].kyc || db[pendingId].kyc.status === 'pending';
