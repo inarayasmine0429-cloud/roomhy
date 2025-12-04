@@ -324,13 +324,21 @@
     }
 
     function completeLogin(userObj, redirectUrl) {
-        // Set generic user session (used by most pages)
+        // Set session in both storages for Render compatibility
         localStorage.setItem('user', JSON.stringify(userObj));
+        sessionStorage.setItem('user', JSON.stringify(userObj));
         
-        // Also set role-specific keys if you want to support concurrent login tabs in the future,
-        // but 'user' is the main key used by your dashboard scripts currently.
-        if (userObj.role === 'tenant') localStorage.setItem('tenant_user', JSON.stringify(userObj));
+        // Set role-specific sessions
+        if (userObj.role === 'owner') {
+            localStorage.setItem('owner_session', JSON.stringify(userObj));
+            sessionStorage.setItem('owner_session', JSON.stringify(userObj));
+        } else if (userObj.role === 'tenant') {
+            localStorage.setItem('tenant_session', JSON.stringify(userObj));
+            sessionStorage.setItem('tenant_session', JSON.stringify(userObj));
+            localStorage.setItem('tenant_user', JSON.stringify(userObj));
+        }
         
+        console.log('✅ Session set, redirecting to:', redirectUrl);
         window.location.href = redirectUrl;
     }
 
