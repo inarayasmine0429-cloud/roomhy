@@ -44,6 +44,29 @@ app.use('/api/rooms', require('./roomhy-backend/routes/roomRoutes'));
 app.use('/api/notifications', require('./roomhy-backend/routes/notificationRoutes'));
 app.use('/api/owners', require('./roomhy-backend/routes/ownerRoutes'));
 
+// Test endpoint: seed a test owner for development
+app.post('/api/test/seed-owner', async (req, res) => {
+    try {
+        const Owner = require('./roomhy-backend/models/Owner');
+        const testOwner = await Owner.create({
+            loginId: 'TESTOWNER2024',
+            name: 'Test Property Owner',
+            phone: '9999999999',
+            address: '123 Test Street, Test City',
+            locationCode: 'LOC001',
+            credentials: { password: 'test@123' },
+            kyc: { status: 'verified' }
+        });
+        res.status(201).json({ message: 'Test owner created', owner: testOwner });
+    } catch (err) {
+        if (err.code === 11000) {
+            res.status(200).json({ message: 'Test owner already exists' });
+        } else {
+            res.status(500).json({ error: err.message });
+        }
+    }
+});
+
 const PORT = process.env.PORT || 5000;
 
 // Fallback middleware: serve index.html for any unmatched route (SPA fallback)
