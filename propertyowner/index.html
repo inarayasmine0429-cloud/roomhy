@@ -91,9 +91,9 @@
                     <input type="password" id="confirm-pass" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Confirm Password" required>
                 </div>
                 <div id="setpass-error" class="text-red-500 text-xs mb-3 hidden"></div>
-                <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg shadow-lg">Set Password & Login</button>
+                <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg shadow-lg">Set Password & Login Again</button>
             </form>
-             <button onclick="resetView()" class="w-full mt-3 text-gray-400 text-sm hover:text-gray-600">Back</button>
+             <button onclick="resetView()" class="w-full mt-3 text-gray-400 text-sm hover:text-gray-600">Back to Login</button>
         </div>
 
     </div>
@@ -118,118 +118,105 @@
 
         console.log('🔍 Login attempt for ID:', id);
 
-        // 1. Try Property Owner Login (use API first, fallback to localStorage)
+        // ---------------------------------------------------------
+        // 1. PROPERTY OWNER LOGIN
+        // ---------------------------------------------------------
         if (id.startsWith('ROOMHY')) {
             let owner = null;
 
             // Try fetching from backend API
             try {
-                console.log('🌐 API: Fetching owner with loginId:', id);
                 const res = await fetch(`/api/owners/${encodeURIComponent(id)}`);
-                console.log('🌐 API: Response status:', res.status);
-                if (res.ok) {
-                    owner = await res.json();
-                    console.log('🌐 API: Owner fetched successfully:', { loginId: owner.loginId, hasPassword: !!owner.credentials?.password });
-                } else if (res.status === 404) {
-                    const errData = await res.json();
-                    console.log('🌐 API: Owner not found (404), error:', errData);
-                } else {
-                    const errData = await res.json();
-                    console.warn('🌐 API: Unexpected status', res.status, 'error:', errData);
-                }
+                if (res.ok) owner = await res.json();
             } catch (err) {
-                console.warn('🌐 API: Fetch failed (network/parse error):', err.message);
+                console.warn('🌐 API fetch failed, checking localStorage');
             }
 
-            // Fallback to localStorage if API did not return owner
+            // Fallback to localStorage
             if (!owner) {
-                const rawDb = localStorage.getItem('roomhy_owners_db');
-                console.log('📦 roomhy_owners_db raw (fallback):', rawDb);
-                const db = JSON.parse(rawDb || '{}');
+                const db = JSON.parse(localStorage.getItem('roomhy_owners_db') || '{}');
                 owner = db[id] || null;
-                console.log('📦 Owner from localStorage:', !!owner);
             }
 
             if (!owner) {
-                // No owner available
-                const rawDb = localStorage.getItem('roomhy_owners_db') || '{}';
-                const db = JSON.parse(rawDb);
-                const availableIds = Object.keys(db);
-                if (availableIds.length === 0) {
-                    return showError('No owners registered yet. Please ask Super Admin to approve your enquiry first.');
-                } else {
-                    return showError(`Owner ID not found. Available: ${availableIds.join(', ')}`);
-                }
+                return showError('Owner ID not found. Please contact Super Admin.');
             }
 
-            // If owner object came from API, its structure is mongoose document; normalize to expected shape
-            const storedPass = (owner.credentials && (owner.credentials.password || owner.credentials.tempPassword)) || owner.password || (owner.credentials && owner.credentials.password) || null;
-            console.log('🔐 Password check:', { hasStoredPass: !!storedPass, inputPassword: pass, match: storedPass === pass, firstTime: owner.credentials?.firstTime, passwordSet: owner.passwordSet });
+            // Determine which password to check
+            const storedPass = (owner.credentials && owner.credentials.password) || owner.password; 
+            // Assuming backend/local structure normalized. For first time, `password` holds temp pass.
 
             if (storedPass === pass) {
-                // Check if First Time
+                // CHECK 1: Is this First Time? (Temp Password Used)
                 if ((owner.credentials && owner.credentials.firstTime) || !owner.passwordSet) {
+                    // Detect if 'passwordSet' flag is missing or false
                     pendingUser = { id: id, role: 'owner', type: 'owner' };
-                    showSetPass();
+                    showSetPass(); // -> Go to Set Password Screen
                     return;
                 }
 
-                // Success - set in both storages for compatibility
+                // Success - Normal Login with New Password
                 const sessionUser = { loginId: id, role: 'owner', ownerId: id, name: (owner.profile && owner.profile.name) || owner.name || 'Owner' };
                 sessionStorage.setItem('owner_session', JSON.stringify(sessionUser));
                 localStorage.setItem('owner_session', JSON.stringify(sessionUser));
-                console.log('✅ Owner login successful:', id);
-                completeLogin(sessionUser, 'propertyowner/ownerprofile.html');
+                
+                // CHECK 2: Onboarding Status (Profile -> KYC -> Dashboard)
+                const isProfileIncomplete = !owner.profile || !owner.profile.email || !owner.profile.address;
+                const isKycPending = !owner.kyc || owner.kyc.status === 'pending';
+
+                let redirectUrl = 'propertyowner/admin.html'; // Default Dashboard
+
+                if (isProfileIncomplete) {
+                    redirectUrl = 'propertyowner/ownerprofile.html';
+                } else if (isKycPending) {
+                    redirectUrl = 'propertyowner/ownerkyc.html';
+                }
+
+                completeLogin(sessionUser, redirectUrl);
                 return;
             } else {
                 return showError('Invalid password.');
             }
         }
 
-        // 2. Try Tenant Login
-        // Tenants might use TNT... or Email.
-        // For simplicity in this demo, we iterate the tenant array.
+        // ---------------------------------------------------------
+        // 2. TENANT LOGIN
+        // ---------------------------------------------------------
         const tenants = JSON.parse(localStorage.getItem('roomhy_tenants') || '[]');
         const tenant = tenants.find(t => (t.loginId && t.loginId.toUpperCase() === id) || (t.email && t.email.toUpperCase() === id));
 
         if (tenant) {
-            const storedPass = tenant.password || tenant.tempPassword; // Check either
+            const storedPass = tenant.password || tenant.tempPassword; 
             
             if (storedPass === pass) {
-                // Check if First Time (using temp password)
+                // CHECK 1: Is this First Time? (Temp Password Used)
                 if (tenant.tempPassword && tenant.tempPassword === pass) {
                     pendingUser = { id: tenant.loginId, role: 'tenant', type: 'tenant' };
-                    showSetPass();
+                    showSetPass(); // -> Go to Set Password Screen
                     return;
                 }
                 
-                // Check if onboarding is complete
-                if (!tenant.profileFilled || !tenant.kycStatus || !tenant.agreementSigned) {
-                    // Onboarding not complete - redirect to profile step
-                    const sessionUser = { 
-                        loginId: tenant.loginId, 
-                        role: 'tenant', 
-                        tenantId: tenant.id,
-                        name: tenant.name 
-                    };
-                    // Set in both storages for Render compatibility
-                    sessionStorage.setItem('tenant_session', JSON.stringify(sessionUser));
-                    localStorage.setItem('tenant_session', JSON.stringify(sessionUser));
-                    completeLogin(sessionUser, 'tenant/tenantprofile.html'); // Start onboarding flow
-                    return;
-                }
-                
-                // Onboarding complete - go to dashboard
+                // CHECK 2: Onboarding Status (Profile -> KYC -> Agreement -> Dashboard)
                 const sessionUser = { 
                     loginId: tenant.loginId, 
                     role: 'tenant', 
-                    tenantId: tenant.id, // internal ID
+                    tenantId: tenant.id,
                     name: tenant.name 
                 };
-                // Set in both storages for Render compatibility
+                
+                // Set session now so onboarding pages can read it
                 sessionStorage.setItem('tenant_session', JSON.stringify(sessionUser));
                 localStorage.setItem('tenant_session', JSON.stringify(sessionUser));
-                completeLogin(sessionUser, 'tenant/tenantdashboard.html');
+
+                if (!tenant.profileFilled) {
+                    completeLogin(sessionUser, 'tenant/tenantprofile.html');
+                } else if (tenant.kycStatus === 'pending') {
+                    completeLogin(sessionUser, 'tenant/tenantkyc.html');
+                } else if (!tenant.agreementSigned) {
+                    completeLogin(sessionUser, 'tenant/tenantagreement.html');
+                } else {
+                    completeLogin(sessionUser, 'tenant/tenantdashboard.html');
+                }
                 return;
             } else {
                  return showError('Invalid password.');
@@ -243,6 +230,7 @@
     function showSetPass() {
         document.getElementById('login-form').classList.add('hidden');
         document.getElementById('setpass-form').classList.remove('hidden');
+        document.getElementById('password').value = ''; // Clear old pass
     }
 
     function resetView() {
@@ -268,101 +256,45 @@
             return;
         }
 
+        // UPDATE PASSWORD IN DB (Based on Role)
         if (pendingUser.role === 'owner') {
-            // Update backend owner via API
-            try {
-                const pendingId = pendingUser.id; // Save ID before it might get cleared
-                console.log('📝 Attempting to update owner password for:', pendingId);
-                fetch(`/api/owners/${encodeURIComponent(pendingId)}`, {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        credentials: { password: p1, firstTime: false }
-                    })
-                })
-                .then(res => {
-                    console.log('✏️ PATCH response status:', res.status);
-                    if (!res.ok) throw new Error(`API error: ${res.status}`);
-                    return res.json();
-                })
-                .then(updated => {
-                    console.log('✅ Owner password updated on backend. Updated doc:', JSON.stringify(updated, null, 2));
-                    // Show success and reset to login form
-                    alert('✅ Password set successfully! Please login with your new password.');
-                    resetView();
-                    document.getElementById('login-id').value = pendingId;
-                    document.getElementById('password').value = '';
-                    pendingUser = null;
-                })
-                .catch(err => {
-                    console.error('❌ Backend PATCH failed:', err.message);
-                    console.warn('Using localStorage fallback');
-                    // Fallback to localStorage
-                    const db = JSON.parse(localStorage.getItem('roomhy_owners_db') || '{}');
-                    if (!db[pendingId]) db[pendingId] = {};
-                    db[pendingId].credentials = { password: p1, firstTime: false };
-                    db[pendingId].passwordSet = true;
-                    localStorage.setItem('roomhy_owners_db', JSON.stringify(db));
-                    
-                    // Show success and reset to login form
-                    alert('✅ Password set successfully! Please login with your new password.');
-                    resetView();
-                    document.getElementById('login-id').value = pendingId;
-                    document.getElementById('password').value = '';
-                    pendingUser = null;
-                });
-            } catch (err) {
-                console.error('❌ Exception in password update:', err.message);
-                const pendingId = pendingUser ? pendingUser.id : 'unknown';
-                // Fallback to localStorage
-                const db = JSON.parse(localStorage.getItem('roomhy_owners_db') || '{}');
-                if (!db[pendingId]) db[pendingId] = {};
-                db[pendingId].credentials = { password: p1, firstTime: false };
-                db[pendingId].passwordSet = true;
+            const db = JSON.parse(localStorage.getItem('roomhy_owners_db') || '{}');
+            if (db[pendingUser.id]) {
+                // Update credentials
+                db[pendingUser.id].credentials = { password: p1, firstTime: false }; 
+                db[pendingUser.id].passwordSet = true; // Flag as set
+                
                 localStorage.setItem('roomhy_owners_db', JSON.stringify(db));
                 
-                // Show success and reset to login form
-                alert('✅ Password set successfully! Please login with your new password.');
+                // IMPORTANT: Do NOT auto-login. Send back to Login screen.
+                alert('✅ Password set successfully! Please login again with your new password.');
                 resetView();
-                document.getElementById('login-id').value = pendingId;
-                document.getElementById('password').value = '';
-                pendingUser = null;
+                document.getElementById('login-id').value = pendingUser.id; // Pre-fill ID
             }
         } else if (pendingUser.role === 'tenant') {
             const tenants = JSON.parse(localStorage.getItem('roomhy_tenants') || '[]');
             const idx = tenants.findIndex(t => t.loginId === pendingUser.id);
             if (idx > -1) {
                 tenants[idx].password = p1;
-                tenants[idx].tempPassword = null; // Clear temp
-                tenants[idx].passwordSet = true;
+                tenants[idx].tempPassword = null; // Remove temp pass
+                tenants[idx].passwordSet = true;  // Flag as set
+                
                 localStorage.setItem('roomhy_tenants', JSON.stringify(tenants));
                 
-                // Show success and reset to login form
-                alert('✅ Password set successfully! Please login with your new password.');
+                // IMPORTANT: Do NOT auto-login. Send back to Login screen.
+                alert('✅ Password set successfully! Please login again with your new password.');
                 resetView();
-                document.getElementById('login-id').value = pendingUser.id;
-                document.getElementById('password').value = '';
-                pendingUser = null;
+                document.getElementById('login-id').value = pendingUser.id; // Pre-fill ID
             }
         }
     }
 
     function completeLogin(userObj, redirectUrl) {
-        // Set session in both storages for Render compatibility
+        // Set generic user session (used by most pages)
         localStorage.setItem('user', JSON.stringify(userObj));
-        sessionStorage.setItem('user', JSON.stringify(userObj));
         
-        // Set role-specific sessions
-        if (userObj.role === 'owner') {
-            localStorage.setItem('owner_session', JSON.stringify(userObj));
-            sessionStorage.setItem('owner_session', JSON.stringify(userObj));
-        } else if (userObj.role === 'tenant') {
-            localStorage.setItem('tenant_session', JSON.stringify(userObj));
-            sessionStorage.setItem('tenant_session', JSON.stringify(userObj));
-            localStorage.setItem('tenant_user', JSON.stringify(userObj));
-        }
+        if (userObj.role === 'tenant') localStorage.setItem('tenant_user', JSON.stringify(userObj));
         
-        console.log('✅ Session set, redirecting to:', redirectUrl);
         window.location.href = redirectUrl;
     }
 
