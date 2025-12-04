@@ -59,10 +59,15 @@ router.patch('/:loginId', async (req, res) => {
         }
         console.log('✅ PATCH: Found existing owner, current state:', JSON.stringify(existingOwner, null, 2));
         
-        // Now update it
+        // If password is being updated, ensure credentials.firstTime is set to false and passwordSet is set to true
+        let updatePayload = { ...req.body };
+        if (updatePayload.credentials && updatePayload.credentials.password) {
+            updatePayload['credentials.firstTime'] = false;
+            updatePayload['passwordSet'] = true;
+        }
         const owner = await Owner.findOneAndUpdate(
             { loginId: req.params.loginId },
-            { $set: req.body },
+            { $set: updatePayload },
             { new: true }
         );
         

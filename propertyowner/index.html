@@ -258,7 +258,6 @@
         // UPDATE PASSWORD IN DB (Based on Role)
         if (pendingUser.role === 'owner') {
             const pendingId = pendingUser.id; // Capture ID before potential nullification
-            
             // Try Backend Update First
             fetch(`/api/owners/${encodeURIComponent(pendingId)}`, {
                 method: 'PATCH',
@@ -272,9 +271,33 @@
                 return res.json();
             })
             .then(updated => {
-                alert('✅ Password set successfully! Please login again with your new password.');
-                resetView();
-                document.getElementById('login-id').value = pendingId;
+                // Update localStorage as well
+                const db = JSON.parse(localStorage.getItem('roomhy_owners_db') || '{}');
+                if (db[pendingId]) {
+                    db[pendingId].credentials = { password: p1, firstTime: false };
+                    db[pendingId].passwordSet = true;
+                    localStorage.setItem('roomhy_owners_db', JSON.stringify(db));
+                }
+                // Auto-login after password set
+                const sessionUser = {
+                    loginId: pendingId,
+                    role: 'owner',
+                    ownerId: pendingId,
+                    name: (updated.profile && updated.profile.name) || updated.name || 'Owner'
+                };
+                sessionStorage.setItem('owner_session', JSON.stringify(sessionUser));
+                localStorage.setItem('owner_session', JSON.stringify(sessionUser));
+                localStorage.setItem('user', JSON.stringify(sessionUser));
+                // Redirect to dashboard or onboarding as needed
+                let redirectUrl = 'propertyowner/admin.html';
+                const isProfileIncomplete = !updated.profile || !updated.profile.email || !updated.profile.address;
+                const isKycPending = !updated.kyc || updated.kyc.status === 'pending';
+                if (isProfileIncomplete) {
+                    redirectUrl = 'propertyowner/ownerprofile.html';
+                } else if (isKycPending) {
+                    redirectUrl = 'propertyowner/ownerkyc.html';
+                }
+                window.location.href = redirectUrl;
             })
             .catch(err => {
                 // Fallback to localStorage
@@ -283,12 +306,26 @@
                     // Update credentials
                     db[pendingId].credentials = { password: p1, firstTime: false }; 
                     db[pendingId].passwordSet = true; // Flag as set
-                    
                     localStorage.setItem('roomhy_owners_db', JSON.stringify(db));
-                    
-                    alert('✅ Password set successfully! Please login again with your new password.');
-                    resetView();
-                    document.getElementById('login-id').value = pendingId; 
+                    // Auto-login after password set (local)
+                    const sessionUser = {
+                        loginId: pendingId,
+                        role: 'owner',
+                        ownerId: pendingId,
+                        name: (db[pendingId].profile && db[pendingId].profile.name) || db[pendingId].name || 'Owner'
+                    };
+                    sessionStorage.setItem('owner_session', JSON.stringify(sessionUser));
+                    localStorage.setItem('owner_session', JSON.stringify(sessionUser));
+                    localStorage.setItem('user', JSON.stringify(sessionUser));
+                    let redirectUrl = 'propertyowner/admin.html';
+                    const isProfileIncomplete = !db[pendingId].profile || !db[pendingId].profile.email || !db[pendingId].profile.address;
+                    const isKycPending = !db[pendingId].kyc || db[pendingId].kyc.status === 'pending';
+                    if (isProfileIncomplete) {
+                        redirectUrl = 'propertyowner/ownerprofile.html';
+                    } else if (isKycPending) {
+                        redirectUrl = 'propertyowner/ownerkyc.html';
+                    }
+                    window.location.href = redirectUrl;
                 }
             });
         } else if (pendingUser.role === 'tenant') {
