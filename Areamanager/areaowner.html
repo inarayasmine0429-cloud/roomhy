@@ -66,6 +66,7 @@
                 <div class="mt-6 px-6 pb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">System</div>
                  <a href="arealoc.html" class="sidebar-link"><i data-lucide="map-pin" class="w-5 h-5 mr-3"></i> RoomHy Location</a>
                  <a href="areareport.html" class="sidebar-link"><i data-lucide="bar-chart-2" class="w-5 h-5 mr-3"></i> Reports</a>
+                 <a href="profile.html" class="sidebar-link"><i data-lucide="user" class="w-5 h-5 mr-3"></i> Profile</a>
                  <a href="setting.html" class="sidebar-link"><i data-lucide="settings" class="w-5 h-5 mr-3"></i> Settings</a>
             </nav>
         </aside>
@@ -161,21 +162,24 @@
 
         // Auth Check - prefer manager_user then fall back to user
         document.addEventListener('DOMContentLoaded', () => {
-            const user = JSON.parse(localStorage.getItem('manager_user') || localStorage.getItem('user') || 'null');
+            const user = JSON.parse(sessionStorage.getItem('manager_user') || sessionStorage.getItem('user') || localStorage.getItem('manager_user') || localStorage.getItem('user') || 'null');
             
             if (user && user.role === 'areamanager') {
                 isAreaManager = true;
                 document.getElementById('headerName').innerText = user.name;
-                document.getElementById('userAreaBadge').innerText = user.areaName || 'All Areas';
+                const displayArea = user.areaName || user.area || user.city || 'All Areas';
+                document.getElementById('userAreaBadge').innerText = displayArea;
                 document.getElementById('filterBadge').innerText = 'Showing: All Areas';
                 myAreaCode = user.areaCode || '';
                 loadAreaOwners();
-            } else if (user && user.role === 'employee' && user.area) {
+            } else if (user && user.role === 'employee') {
                 isAreaManager = false;
-                myArea = user.area;
+                // Use location field if available, otherwise fallback to areaName > area > team
+                myArea = user.location || user.areaName || user.area || user.team || '';
                 document.getElementById('headerName').innerText = user.name;
-                document.getElementById('userAreaBadge').innerText = user.area;
-                document.getElementById('filterBadge').innerText = `Showing: ${user.area}`;
+                const displayArea = user.location || user.areaName || user.area || user.team || 'Team Member';
+                document.getElementById('userAreaBadge').innerText = displayArea;
+                document.getElementById('filterBadge').innerText = `Showing: ${displayArea}`;
                 
                 // Check permissions
                 canViewAllDetails = user.permissions && user.permissions.includes('view_all_details');

@@ -244,14 +244,15 @@
         lucide.createIcons();
         
         // --- Auth Guard ---
-        const user = JSON.parse(localStorage.getItem('user') || 'null');
+        // Prefer per-tab owner session, then session user, then local storage fallback
+        const user = JSON.parse(sessionStorage.getItem('owner_session') || sessionStorage.getItem('user') || localStorage.getItem('user') || 'null');
         if (!user || user.role !== 'owner') {
             window.location.href = 'ownerlogin.html';
         }
         
         const ownerId = user.ownerId || user.loginId;
         
-        // --- Header Population ---
+        // --- Header Population & Data Load ---
         document.addEventListener('DOMContentLoaded', () => {
             if (document.getElementById('headerName')) {
                 document.getElementById('headerName').innerText = user.name;
@@ -259,12 +260,51 @@
             if (document.getElementById('headerAvatar')) {
                 document.getElementById('headerAvatar').innerText = user.name.charAt(0).toUpperCase();
             }
+
+            // Load properties for this owner and render table
+            const allProps = JSON.parse(localStorage.getItem('roomhy_properties') || '[]');
+            const myProps = allProps.filter(p => {
+                // Support either ownerId or ownerLoginId fields
+                return (p.ownerId && p.ownerId === ownerId) || (p.ownerLoginId && p.ownerLoginId === ownerId);
+            });
+
+            const tbody = document.querySelector('tbody');
+            tbody.innerHTML = '';
+            if (myProps.length === 0) {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td colspan="7" class="px-4 py-6 text-center text-sm text-gray-500">No properties found for your account.</td>`;
+                tbody.appendChild(tr);
+            } else {
+                myProps.forEach(p => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td class="px-4 py-4 whitespace-nowrap">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0 h-10 w-10">
+                                    <img class="h-10 w-10 rounded-lg object-cover" src="${p.image || 'https://via.placeholder.com/80'}" alt="${p.name}">
+                                </div>
+                                <div class="ml-4">
+                                    <div class="text-sm font-medium text-gray-900">${p.name || p.propertyName || 'Untitled'}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>${p.ownerName || user.name}</td>
+                        <td>${p.city || p.location || '-'}</td>
+                        <td>${p.area || '-'}</td>
+                        <td>${p.size || p.propertySize || '-'}</td>
+                        <td class="max-w-xs truncate">${p.description || '-'}</td>
+                        <td>${p.address || '-'}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
         });
         
         // --- Logout Handler ---
         document.getElementById('logoutBtn').addEventListener('click', (e) => {
             e.preventDefault();
-            localStorage.removeItem('user');
+            // Clear per-tab owner session
+            sessionStorage.removeItem('owner_session');
             window.location.href = 'ownerlogin.html';
         });
         

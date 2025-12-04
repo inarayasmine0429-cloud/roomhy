@@ -22,25 +22,23 @@
 <body class="text-slate-800">
     <script>
         // Early role validation (MUST RUN FIRST)
-        // For property owner panel, ONLY check the 'user' key
-        // This key should ONLY contain owner role when owner is logged in
-        const userStr = localStorage.getItem('user');
+        // For property owner panel, check sessionStorage for owner_session
+        const ownerSessionStr = sessionStorage.getItem('owner_session');
         
         let currentUser = null;
         try {
-            currentUser = userStr ? JSON.parse(userStr) : null;
+            currentUser = ownerSessionStr ? JSON.parse(ownerSessionStr) : null;
         } catch (e) {
             currentUser = null;
         }
         
-        // Redirect if user is not an owner
-        // (This will only be true if 'user' key is properly set to an owner)
+        // Redirect if user is not an owner or if no owner session exists
         if (!currentUser || currentUser.role !== 'owner') {
-            if (currentUser && currentUser.role === 'areamanager') {
+            // Check if staff user is logged in and redirect them
+            const staffUser = JSON.parse(localStorage.getItem('manager_user') || localStorage.getItem('user') || 'null');
+            if (staffUser && (staffUser.role === 'areamanager' || staffUser.role === 'employee')) {
                 window.location.href = '../Areamanager/areaadmin.html';
-            } else if (currentUser && currentUser.role === 'employee') {
-                window.location.href = '../Areamanager/areaadmin.html';
-            } else if (currentUser && currentUser.role === 'superadmin') {
+            } else if (staffUser && staffUser.role === 'superadmin') {
                 window.location.href = '../superadmin/superadmin.html';
             } else {
                 window.location.href = '../index.html';
@@ -64,15 +62,14 @@
                 <a href="admin.html" class="sidebar-link active"><i data-lucide="layout-dashboard" class="w-5 h-5 mr-3"></i> Dashboard</a>
                 <a href="properties.html" class="sidebar-link"><i data-lucide="building" class="w-5 h-5 mr-3"></i> Properties</a>
                 <a href="rooms.html" class="sidebar-link"><i data-lucide="bed-double" class="w-5 h-5 mr-3"></i> Rooms</a>
-                <a href="tenants.html" class="sidebar-link"><i data-lucide="users" class="w-5 h-5 mr-3"></i> Tenants</a>
                 <a href="tenantrec.html" class="sidebar-link"><i data-lucide="clipboard-list" class="w-5 h-5 mr-3"></i> Tenant Records</a>
                 <a href="documents.html" class="sidebar-link"><i data-lucide="file-text" class="w-5 h-5 mr-3"></i> Documents</a>
                 <a href="payment.html" class="sidebar-link"><i data-lucide="credit-card" class="w-5 h-5 mr-3"></i> Payments</a>
                 <a href="complaints.html" class="sidebar-link"><i data-lucide="alert-circle" class="w-5 h-5 mr-3"></i> Complaints</a>
-                <a href="chat.html" class="sidebar-link"><i data-lucide="message-square" class="w-5 h-5 mr-3"></i> Chats</a>
-                <a href="review.html" class="sidebar-link"><i data-lucide="star" class="w-5 h-5 mr-3"></i> Reviews</a>
                 <a href="location.html" class="sidebar-link"><i data-lucide="map-pin" class="w-5 h-5 mr-3"></i> Location</a>
-                <a href="ownerprofile.html" class="sidebar-link"><i data-lucide="settings" class="w-5 h-5 mr-3"></i> Profile & Settings</a>
+                <a href="chat.html" class="sidebar-link"><i data-lucide="message-square" class="w-5 h-5 mr-3"></i> Chat</a>
+                <a href="ownerprofile.html" class="sidebar-link"><i data-lucide="user" class="w-5 h-5 mr-3"></i> Profile</a>
+                <a href="settings.html" class="sidebar-link"><i data-lucide="settings" class="w-5 h-5 mr-3"></i> Settings</a>
             </nav>
         </aside>
 

@@ -142,20 +142,30 @@
 
     </div>
 
+    <script src="../sessionManager.js"></script>
     <script>
         lucide.createIcons();
         
-        // --- Auth Guard ---
-        const user = JSON.parse(localStorage.getItem('user') || 'null');
-        if (!user || user.role !== 'owner') {
-            window.location.href = 'ownerlogin.html';
+        // --- Auth Guard (prefer per-tab owner session) ---
+        const _tenantRecInit = () => {
+            const owner = typeof getCurrentOwner === 'function' ? getCurrentOwner() : null;
+            if (!owner) {
+                window.location.href = 'ownerlogin.html';
+                return null;
+            }
+            return owner;
+        };
+
+        const user = _tenantRecInit();
+        if (!user) {
+            // redirected
         }
-        
-        const ownerId = user.ownerId || user.loginId;
+        const ownerId = user ? (user.ownerId || user.loginId) : null;
         let currentOwnerId = ownerId;
         
         // --- Header Population ---
         document.addEventListener('DOMContentLoaded', () => {
+            if (!user) return;
             if (document.getElementById('headerName')) {
                 document.getElementById('headerName').innerText = user.name;
             }
@@ -164,10 +174,11 @@
             }
         });
         
-        // --- Logout Handler ---
+        // --- Logout Handler (per-tab) ---
         document.getElementById('logoutBtn').addEventListener('click', (e) => {
             e.preventDefault();
-            localStorage.removeItem('user');
+            try { sessionStorage.removeItem('owner_session'); sessionStorage.removeItem('user'); } catch(_) {}
+            try { localStorage.removeItem('user'); } catch(_) {}
             window.location.href = 'ownerlogin.html';
         });
         

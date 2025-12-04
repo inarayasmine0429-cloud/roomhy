@@ -23,83 +23,83 @@
     
     <script>
         // --- Safe Redirect Helper ---
+        // Fixes SyntaxError on relative paths in some environments (Blob/Preview)
         function safeRedirect(url) {
+            const isPreview = window.location.protocol === 'blob:' || window.location.href.includes('scf.usercontent');
+            
+            if (isPreview) {
+                // Directly show manual link to avoid SyntaxError
+                showFallbackUI(url);
+                return;
+            }
+
             try {
                 window.location.href = url;
             } catch (e) {
                 console.warn("Redirect blocked:", e);
-                document.body.innerHTML = `
-                    <div class="flex flex-col items-center justify-center h-screen bg-gray-100">
-                        <div class="bg-white p-8 rounded-xl shadow-lg text-center max-w-md">
-                            <h2 class="text-xl font-bold text-gray-800 mb-2">Navigation Required</h2>
-                            <p class="text-gray-500 mb-6">Please click below to proceed.</p>
-                            <a href="${url}" class="block w-full bg-purple-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-purple-700 transition">
-                                Proceed
-                            </a>
-                        </div>
-                    </div>
-                `;
+                showFallbackUI(url);
             }
         }
 
-        // --- EARLY AUTH CHECK (RUN IMMEDIATELY) ---
-        // Get user from localStorage
-        // For area manager panel, MUST use manager_user (set ONLY by employee/manager login)
-        const managerUser = JSON.parse(localStorage.getItem('manager_user') || 'null');
-        const user = JSON.parse(localStorage.getItem('user') || 'null');
-        
-        // ONLY allow access if manager_user is valid (employee or areamanager)
-        // Do NOT fall back to user key - that's for property owners
-        let currentUser = null;
-        if (managerUser && (managerUser.role === 'areamanager' || managerUser.role === 'employee')) {
-            currentUser = managerUser;
+        function showFallbackUI(url) {
+            document.body.innerHTML = `
+                <div class="flex flex-col items-center justify-center h-screen bg-gray-100">
+                    <div class="bg-white p-8 rounded-xl shadow-lg text-center max-w-md">
+                        <div class="mb-4 bg-red-100 p-3 rounded-full w-16 h-16 flex items-center justify-center mx-auto">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-red-600"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><line x1="18" y1="8" x2="23" y2="13"></line><line x1="23" y1="8" x2="18" y2="13"></line></svg>
+                        </div>
+                        <h2 class="text-xl font-bold text-gray-800 mb-2">Access Denied</h2>
+                        <p class="text-gray-500 mb-6 text-sm">You need to login to view this page.</p>
+                        <a href="${url}" class="block w-full bg-purple-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-purple-700 transition shadow-md">
+                            Go to Login Page
+                        </a>
+                    </div>
+                </div>
+            `;
         }
+
+        // --- STRICT AUTH CHECK ---
+        // 1. Get user
+        // Try per-tab/session storage first, then fallback to localStorage
+        const user = JSON.parse(sessionStorage.getItem('manager_user') || sessionStorage.getItem('user') || localStorage.getItem('manager_user') || localStorage.getItem('user') || 'null');
         
-        // Check if user is authorized to access this panel
-        // Only areamanager and employee roles allowed (via manager_user key)
-        if (!currentUser) {
-            // User is not authorized - redirect to appropriate panel
-            if (user && user.role === 'owner') {
-                safeRedirect('../propertyowner/admin.html');
-            } else if (user && user.role === 'superadmin') {
-                safeRedirect('../superadmin/superadmin.html');
-            } else {
-                // No valid user - redirect to login
-                safeRedirect('../index.html');
-            }
-            throw new Error("Unauthorized Access");
+        // 2. Check if user exists AND has the correct role
+        // If user is an OWNER or TENANT trying to access this page, force logout/redirect
+        if (!user || (user.role !== 'areamanager' && user.role !== 'employee')) {
+            // alert("Access Denied: You are logged in as " + (user ? user.role : 'Unknown') + ". Redirecting to login.");
+            localStorage.removeItem('user'); // Clear conflicting session
+            localStorage.removeItem('manager_user'); // Clear conflicting session
+            sessionStorage.removeItem('owner_session'); // Clear owner session
+            safeRedirect('../index.html'); // Redirect to unified login
+            throw new Error("Access Denied"); // Stop script execution
         }
 
         // --- DYNAMIC PERMISSION LOGIC ---
         const sidebarConfig = {
-            // Core Modules (Permission Based)
+            // Core Modules - AREA MANAGER ONLY (Permission Based)
             'properties': { label: 'Properties', page: 'areaproperty.html', icon: 'home' },
             'visits': { label: 'Visit Reports', page: 'visit.html', icon: 'clipboard-list' },
             'tenants': { label: 'Tenants', page: 'areatenant.html', icon: 'users' },
             'owners': { label: 'Owners', page: 'areaowner.html', icon: 'briefcase' },
             'payments': { label: 'Payments', page: 'areapayment.html', icon: 'wallet' },
-            'complaints': { label: 'Complaints', page: 'complaint.html', icon: 'alert-circle' },
-            'kyc': { label: 'KYC Verification', page: 'areakyc.html', icon: 'file-check' },
             'enquiries': { label: 'Enquiries', page: 'areaenq.html', icon: 'help-circle' },
-            'finance': { label: 'Finance', page: '../superadmin/platform.html', icon: 'dollar-sign' },
-            'security': { label: 'Security', page: '../superadmin/security.html', icon: 'shield' },
+            'location': { label: 'Location', page: 'arealoc.html', icon: 'map-pin' },
+            'reports': { label: 'Area Reports', page: 'areareport.html', icon: 'bar-chart-2' },
+            'chat': { label: 'Chat', page: 'areachat.html', icon: 'message-square' },
             
             // Default Modules (Always Visible)
-            'dashboard': { label: 'Dashboard', page: 'dashboard_home', icon: 'layout-dashboard' },
-            'chat': { label: 'Chat', page: 'areachat.html', icon: 'message-square' },
-            'reports': { label: 'Reports', page: 'areareport.html', icon: 'bar-chart-2' },
-            'settings': { label: 'Settings', page: 'setting.html', icon: 'settings' }
+            'dashboard': { label: 'Dashboard', page: 'dashboard_home', icon: 'layout-dashboard' }
         };
 
         // These permissions are ALWAYS granted
-        const mandatoryPermissions = ['dashboard', 'chat', 'reports', 'settings'];
+        const mandatoryPermissions = ['dashboard'];
 
         let allowedModules = [];
 
-        if (currentUser.role === 'areamanager') {
+        if (user.role === 'areamanager') {
             allowedModules = Object.keys(sidebarConfig);
-        } else if (currentUser.role === 'employee') {
-            const assigned = currentUser.permissions || [];
+        } else if (user.role === 'employee') {
+            const assigned = user.permissions || [];
             allowedModules = [...new Set([...assigned, ...mandatoryPermissions])];
         }
 
@@ -144,37 +144,57 @@
             // 1. Dashboard
             html += createLink('dashboard');
 
-            // 2. Management
-            const mgmt = ['properties', 'visits', 'tenants', 'owners'];
+            // 2. Management - Show: Properties, Tenants, Owners, Visits, Location, Enquiries
+            const mgmt = ['properties', 'tenants', 'owners', 'visits', 'location', 'enquiries'];
             if(mgmt.some(id => allowedModules.includes(id))) {
                 html += `<div class="px-6 pb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mt-4">Management</div>`;
                 mgmt.forEach(id => html += createLink(id));
             }
 
-            // 3. Operations
-            const ops = ['payments', 'complaints', 'kyc', 'enquiries', 'finance'];
-            if(ops.some(id => allowedModules.includes(id))) {
-                html += `<div class="px-6 pb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mt-4">Operations</div>`;
-                ops.forEach(id => html += createLink(id));
+            // 3. Finance - Show: Payments
+            const fin = ['payments'];
+            if(fin.some(id => allowedModules.includes(id))) {
+                html += `<div class="px-6 pb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mt-4">Finance</div>`;
+                fin.forEach(id => html += createLink(id));
             }
 
-            // 4. System
-            const sys = ['chat', 'location', 'reports', 'settings', 'security'];
-            html += `<div class="px-6 pb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mt-4">System</div>`;
-            sys.forEach(id => html += createLink(id));
+            // 4. System - Show: Chat, Reports
+            const sys = ['chat', 'reports'];
+            if(sys.some(id => allowedModules.includes(id))) {
+                html += `<div class="px-6 pb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mt-4">System</div>`;
+                sys.forEach(id => html += createLink(id));
+            }
+
+            // 5. Account - Always show Profile (add to sidebarConfig if needed)
+            html += `<div class="px-6 pb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mt-4">Account</div>`;
+            html += `<a href="profile.html" class="sidebar-link"><i data-lucide="user" class="w-5 h-5 mr-3"></i> Profile</a>`;
+            html += `<a href="setting.html" class="sidebar-link"><i data-lucide="settings" class="w-5 h-5 mr-3"></i> Settings</a>`;
 
             nav.innerHTML = html;
             lucide.createIcons();
 
             // Header Info
-            document.getElementById('roleLabel').innerText = currentUser.role === 'areamanager' ? 'AREA ADMIN' : 'TEAM MEMBER';
-            document.getElementById('headerRole').innerText = currentUser.area || currentUser.role; 
-            document.getElementById('headerName').innerText = currentUser.name;
-            document.getElementById('welcomeName').innerText = currentUser.name;
-            document.getElementById('headerAreaBadge').innerText = currentUser.area || 'Global';
+            document.getElementById('roleLabel').innerText = user.role === 'areamanager' ? 'AREA ADMIN' : 'TEAM MEMBER';
+            document.getElementById('headerRole').innerText = user.role === 'employee' ? (user.team || 'Employee') : 'Area Manager'; 
+            document.getElementById('headerName').innerText = user.name;
+            document.getElementById('welcomeName').innerText = user.name;
+            
+            // Area Badge Logic (The Request)
+            // If area is assigned, show it. Else show role/team.
+            // We check 'area' (from manager.html) and 'areaName' (legacy)
+            const assignedArea = user.area || user.areaName; 
+            
+            if (assignedArea && assignedArea !== 'Unassigned' && assignedArea !== 'Select Area' && assignedArea !== '') {
+                // Show Area + City if available
+                const display = user.city ? `${assignedArea}, ${user.city}` : assignedArea;
+                document.getElementById('headerAreaBadge').innerText = display;
+            } else {
+                // Fallback for central team members (e.g. HR, Accounts)
+                document.getElementById('headerAreaBadge').innerText = user.team || 'Head Office'; 
+            }
 
             // Hide salary for employees
-            if(currentUser.role === 'employee') document.getElementById('salaryBadge').style.display = 'none';
+            if(user.role === 'employee') document.getElementById('salaryBadge').style.display = 'none';
             
             // Iframe Cleaner
             const frame = document.getElementById('contentFrame');
@@ -214,8 +234,8 @@
                 <div class="flex items-center">
                     <button id="mobile-menu-open" class="md:hidden mr-4 text-slate-500"><i data-lucide="menu" class="w-6 h-6"></i></button>
                     <div class="flex items-center text-sm">
-                        <span class="text-slate-500 font-medium mr-2">Assigned Area:</span>
-                        <span id="headerAreaBadge" class="px-3 py-1 rounded-full bg-purple-100 text-purple-700 text-xs font-bold uppercase tracking-wide">Loading...</span>
+                        <!-- THIS IS THE BADGE THAT UPDATES DYNAMICALLY - SHOWING JUST THE AREA/TEAM NAME -->
+                        <span id="headerAreaBadge" class="px-4 py-2 rounded-full bg-purple-100 text-purple-700 text-sm font-bold uppercase tracking-wide">Loading...</span>
                     </div>
                 </div>
                 <div class="flex items-center gap-4">
@@ -245,11 +265,11 @@
                         <div class="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
                             <div>
                                 <h1 class="text-2xl font-bold text-slate-800">Welcome, <span id="welcomeName">User</span>!</h1>
-                                <p class="text-sm text-slate-500 mt-1">Viewing <span id="welcomeArea" class="font-semibold text-purple-600">Dashboard</span>.</p>
+                                <p class="text-sm text-slate-500 mt-1">Accessing <span id="welcomeArea" class="font-semibold text-purple-600">Dashboard</span>.</p>
                             </div>
                             <div id="salaryBadge" class="bg-white px-4 py-2 rounded-lg shadow-sm border border-gray-200 text-right hidden md:block">
                                 <p class="text-xs text-gray-500 uppercase font-semibold tracking-wider">Current Salary</p>
-                                <p class="text-lg font-bold text-green-600">₹ 45,000</p>
+                                <p class="text-lg font-bold text-green-600">₹ --</p>
                             </div>
                         </div>
 
@@ -281,7 +301,7 @@
                         
                         <div class="mt-8 p-8 bg-white rounded-xl border border-gray-200 text-center">
                             <h3 class="text-lg font-medium text-gray-800">Select a module from the sidebar</h3>
-                            <p class="text-gray-500 text-sm mt-1">Your access is tailored to your Team role and Area.</p>
+                            <p class="text-gray-500 text-sm mt-1">Your access is limited to the specific permissions assigned to your Team role.</p>
                         </div>
 
                     </div>

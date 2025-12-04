@@ -278,21 +278,22 @@
         </div>
     </div>
 
+    <script src="../sessionManager.js"></script>
     <script>
         lucide.createIcons();
         let ownerId = '';
         let currentRoomId = null;
 
-        // 1. Auth & Header Populate
+        // 1. Auth & Header Populate (prefer per-tab owner session)
         document.addEventListener('DOMContentLoaded', () => {
-            const user = JSON.parse(localStorage.getItem('user') || 'null');
-            if (!user || user.role !== 'owner') {
+            const owner = typeof getCurrentOwner === 'function' ? getCurrentOwner() : null;
+            if (!owner) {
                 window.location.href = 'ownerlogin.html';
                 return;
             }
-            ownerId = user.ownerId || user.loginId;
-            document.getElementById('headerName').innerText = user.name;
-            document.getElementById('headerAvatar').innerText = user.name.charAt(0).toUpperCase();
+            ownerId = owner.ownerId || owner.loginId;
+            document.getElementById('headerName').innerText = owner.name;
+            document.getElementById('headerAvatar').innerText = owner.name.charAt(0).toUpperCase();
             loadRooms();
         });
 
@@ -577,6 +578,14 @@
             openModal('assign-tenant-modal');
         }
 
+        // --- Logout (per-tab) ---
+        document.getElementById('logoutBtn').addEventListener('click', (e) => {
+            e.preventDefault();
+            try { sessionStorage.removeItem('owner_session'); sessionStorage.removeItem('user'); } catch(_) {}
+            try { localStorage.removeItem('user'); } catch(_) {}
+            window.location.href = 'ownerlogin.html';
+        });
+
         document.getElementById('assign-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const submitBtn = document.getElementById('assign-submit-btn');
@@ -737,7 +746,6 @@
         function openModal(id) { document.getElementById(id).classList.remove('hidden'); document.getElementById(id).classList.add('flex'); }
         function closeModal(id) { document.getElementById(id).classList.add('hidden'); document.getElementById(id).classList.remove('flex'); }
 
-        loadRooms();
     </script>
 </body>
 </html>

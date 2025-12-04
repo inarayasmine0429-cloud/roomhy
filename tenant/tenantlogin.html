@@ -125,8 +125,8 @@
             // Fallback: Check localStorage (Demo Mode)
             const tenants = JSON.parse(localStorage.getItem('roomhy_tenants') || '[]');
             
-            // Active Tenant Login
-            const activeTenant = tenants.find(t => t.loginId === loginId && t.password === tempPassword);
+            // Active Tenant Login (case-insensitive ID match)
+            const activeTenant = tenants.find(t => (t.loginId && t.loginId.toUpperCase() === loginId) && (t.password === tempPassword));
             if(activeTenant) {
                 createSession(activeTenant);
                 return;
@@ -134,7 +134,7 @@
 
             // First Time Login
             const pendingTenant = tenants.find(t => 
-                t.loginId === loginId && 
+                t.loginId && t.loginId.toUpperCase() === loginId && 
                 t.tempPassword === tempPassword &&
                 (t.status === 'pending' || !t.passwordSet)
             );
@@ -156,7 +156,7 @@
             if (newPassword !== confirmPassword) return showError('Passwords do not match.');
 
             const tenants = JSON.parse(localStorage.getItem('roomhy_tenants') || '[]');
-            const idx = tenants.findIndex(t => t.loginId === tenantPayload.loginId);
+            const idx = tenants.findIndex(t => t.loginId && t.loginId.toUpperCase() === (tenantPayload.loginId || '').toUpperCase());
 
             if (idx > -1) {
                 tenants[idx].password = newPassword;

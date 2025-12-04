@@ -102,7 +102,7 @@
     <script>
         lucide.createIcons();
         
-        const user = JSON.parse(localStorage.getItem('manager_user') || localStorage.getItem('user') || 'null');
+        const user = JSON.parse(sessionStorage.getItem('manager_user') || sessionStorage.getItem('user') || localStorage.getItem('manager_user') || localStorage.getItem('user') || 'null');
         if (!user || user.role !== 'areamanager') {
             // alert("Access Denied");
             // window.location.href = '../index.html'; // Adjust redirect in real app

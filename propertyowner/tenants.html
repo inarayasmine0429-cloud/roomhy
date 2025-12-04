@@ -455,31 +455,39 @@
         </div>
     </div>
     
+    <script src="../sessionManager.js"></script>
     <script>
         lucide.createIcons();
         
-        // --- Auth Guard ---
-        const user = JSON.parse(localStorage.getItem('user') || 'null');
-        if (!user || user.role !== 'owner') {
-            window.location.href = 'ownerlogin.html';
-        }
-        
-        const ownerId = user.ownerId || user.loginId;
+        // --- Auth Guard (prefer per-tab owner session)---
+        const _ownerInit = () => {
+            const owner = typeof getCurrentOwner === 'function' ? getCurrentOwner() : null;
+            if (!owner) {
+                window.location.href = 'ownerlogin.html';
+                return null;
+            }
+            return owner;
+        };
+
+        const owner = _ownerInit();
+        if (owner) var ownerId = owner.ownerId || owner.loginId;
         
         // --- Header Population ---
         document.addEventListener('DOMContentLoaded', () => {
+            if (!owner) return;
             if (document.getElementById('headerName')) {
-                document.getElementById('headerName').innerText = user.name;
+                document.getElementById('headerName').innerText = owner.name;
             }
             if (document.getElementById('headerAvatar')) {
-                document.getElementById('headerAvatar').innerText = user.name.charAt(0).toUpperCase();
+                document.getElementById('headerAvatar').innerText = owner.name.charAt(0).toUpperCase();
             }
         });
         
-        // --- Logout Handler ---
+        // --- Logout Handler (per-tab) ---
         document.getElementById('logoutBtn').addEventListener('click', (e) => {
             e.preventDefault();
-            localStorage.removeItem('user');
+            try { sessionStorage.removeItem('owner_session'); sessionStorage.removeItem('user'); } catch(_) {}
+            try { localStorage.removeItem('user'); } catch(_) {}
             window.location.href = 'ownerlogin.html';
         });
         
