@@ -271,8 +271,9 @@
         if (pendingUser.role === 'owner') {
             // Update backend owner via API
             try {
-                console.log('📝 Attempting to update owner password for:', pendingUser.id);
-                fetch(`/api/owners/${encodeURIComponent(pendingUser.id)}`, {
+                const pendingId = pendingUser.id; // Save ID before it might get cleared
+                console.log('📝 Attempting to update owner password for:', pendingId);
+                fetch(`/api/owners/${encodeURIComponent(pendingId)}`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
@@ -289,7 +290,7 @@
                     // Show success and reset to login form
                     alert('✅ Password set successfully! Please login with your new password.');
                     resetView();
-                    document.getElementById('login-id').value = pendingUser.id;
+                    document.getElementById('login-id').value = pendingId;
                     document.getElementById('password').value = '';
                     pendingUser = null;
                 })
@@ -298,31 +299,32 @@
                     console.warn('Using localStorage fallback');
                     // Fallback to localStorage
                     const db = JSON.parse(localStorage.getItem('roomhy_owners_db') || '{}');
-                    if (!db[pendingUser.id]) db[pendingUser.id] = {};
-                    db[pendingUser.id].credentials = { password: p1, firstTime: false };
-                    db[pendingUser.id].passwordSet = true;
+                    if (!db[pendingId]) db[pendingId] = {};
+                    db[pendingId].credentials = { password: p1, firstTime: false };
+                    db[pendingId].passwordSet = true;
                     localStorage.setItem('roomhy_owners_db', JSON.stringify(db));
                     
                     // Show success and reset to login form
                     alert('✅ Password set successfully! Please login with your new password.');
                     resetView();
-                    document.getElementById('login-id').value = pendingUser.id;
+                    document.getElementById('login-id').value = pendingId;
                     document.getElementById('password').value = '';
                     pendingUser = null;
                 });
             } catch (err) {
                 console.error('❌ Exception in password update:', err.message);
+                const pendingId = pendingUser ? pendingUser.id : 'unknown';
                 // Fallback to localStorage
                 const db = JSON.parse(localStorage.getItem('roomhy_owners_db') || '{}');
-                if (!db[pendingUser.id]) db[pendingUser.id] = {};
-                db[pendingUser.id].credentials = { password: p1, firstTime: false };
-                db[pendingUser.id].passwordSet = true;
+                if (!db[pendingId]) db[pendingId] = {};
+                db[pendingId].credentials = { password: p1, firstTime: false };
+                db[pendingId].passwordSet = true;
                 localStorage.setItem('roomhy_owners_db', JSON.stringify(db));
                 
                 // Show success and reset to login form
                 alert('✅ Password set successfully! Please login with your new password.');
                 resetView();
-                document.getElementById('login-id').value = pendingUser.id;
+                document.getElementById('login-id').value = pendingId;
                 document.getElementById('password').value = '';
                 pendingUser = null;
             }
