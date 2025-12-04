@@ -47,48 +47,18 @@ function initializeSeeder() {
     console.log("✅ Employees DB initialized (empty)");
 
     // ============================================
-    // 3. PROPERTY OWNERS DATABASE (Sample owner for testing)
+    // 3. PROPERTY OWNERS DATABASE (Created via Enquiry Approval)
     // ============================================
-    const ownersDb = {
-        'ROOMHY001': {
-            id: 'ROOMHY001',
-            email: 'owner@roomhy.com',
-            phone: '9876543210',
-            profile: {
-                name: 'John Owner',
-                company: 'RoomHy Properties'
-            },
-            credentials: {
-                password: 'owner@123',
-                firstTime: false
-            },
-            passwordSet: true,
-            createdAt: new Date().toISOString()
-        }
-    };
+    const ownersDb = {};
     localStorage.setItem('roomhy_owners_db', JSON.stringify(ownersDb));
-    console.log("✅ Property Owners DB initialized with sample owner (ID: ROOMHY001, Pass: owner@123)");
+    console.log("✅ Property Owners DB initialized (empty - will be populated via enquiry approvals)");
 
     // ============================================
-    // 4. TENANTS DATABASE (Sample tenant for testing)
+    // 4. TENANTS DATABASE (Created by Property Owners)
     // ============================================
-    const tenantsDb = [
-        {
-            id: 'TNT001',
-            loginId: 'TNT001',
-            email: 'tenant@roomhy.com',
-            phone: '9876543211',
-            name: 'Jane Tenant',
-            password: 'tenant@123',
-            tempPassword: null,
-            profileFilled: true,
-            kycStatus: 'approved',
-            agreementSigned: true,
-            createdAt: new Date().toISOString()
-        }
-    ];
+    const tenantsDb = [];
     localStorage.setItem('roomhy_tenants', JSON.stringify(tenantsDb));
-    console.log("✅ Tenants DB initialized with sample tenant (ID: TNT001, Pass: tenant@123)");
+    console.log("✅ Tenants DB initialized (empty - will be populated by property owners)");
 
     // ============================================
     // 5. PROPERTIES DATABASE (Empty)
