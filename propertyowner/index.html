@@ -121,7 +121,17 @@
             const db = JSON.parse(localStorage.getItem('roomhy_owners_db') || '{}');
             const owner = db[id];
 
-            if (!owner) return showError('Owner ID not found.');
+            if (!owner) {
+                // Retry after small delay (Render fix - sometimes localStorage takes time to load)
+                setTimeout(() => {
+                    const retryDb = JSON.parse(localStorage.getItem('roomhy_owners_db') || '{}');
+                    const retryOwner = retryDb[id];
+                    if (!retryOwner) {
+                        return showError('Owner ID not found.');
+                    }
+                }, 100);
+                return;
+            }
             
             // Check Creds
             const storedPass = owner.credentials?.password || owner.password; // Legacy support
@@ -134,8 +144,10 @@
                     return;
                 }
                 
-                // Success
+                // Success - set in both storages for Render compatibility
                 const sessionUser = { loginId: id, role: 'owner', ownerId: id, name: owner.profile?.name || 'Owner' };
+                sessionStorage.setItem('owner_session', JSON.stringify(sessionUser));
+                localStorage.setItem('owner_session', JSON.stringify(sessionUser));
                 completeLogin(sessionUser, 'propertyowner/admin.html');
                 return;
             } else {
@@ -169,6 +181,9 @@
                         tenantId: tenant.id,
                         name: tenant.name 
                     };
+                    // Set in both storages for Render compatibility
+                    sessionStorage.setItem('tenant_session', JSON.stringify(sessionUser));
+                    localStorage.setItem('tenant_session', JSON.stringify(sessionUser));
                     completeLogin(sessionUser, 'tenant/tenantprofile.html'); // Start onboarding flow
                     return;
                 }
@@ -180,6 +195,9 @@
                     tenantId: tenant.id, // internal ID
                     name: tenant.name 
                 };
+                // Set in both storages for Render compatibility
+                sessionStorage.setItem('tenant_session', JSON.stringify(sessionUser));
+                localStorage.setItem('tenant_session', JSON.stringify(sessionUser));
                 completeLogin(sessionUser, 'tenant/tenantdashboard.html');
                 return;
             } else {
