@@ -175,7 +175,7 @@
                 sessionStorage.setItem('owner_session', JSON.stringify(sessionUser));
                 localStorage.setItem('owner_session', JSON.stringify(sessionUser));
                 console.log('✅ Owner login successful:', id);
-                completeLogin(sessionUser, 'propertyowner/admin.html');
+                completeLogin(sessionUser, 'propertyowner/ownerprofile.html');
                 return;
             } else {
                 return showError('Invalid password.');
@@ -278,8 +278,12 @@
                 })
                 .then(updated => {
                     console.log('✅ Owner password updated on backend:', updated.loginId);
-                    const sessionUser = { loginId: pendingUser.id, role: 'owner', ownerId: pendingUser.id, name: updated.name || 'Owner' };
-                    completeLogin(sessionUser, 'propertyowner/ownerprofile.html');
+                    // Show success and reset to login form
+                    alert('✅ Password set successfully! Please login with your new password.');
+                    resetView();
+                    document.getElementById('login-id').value = pendingUser.id;
+                    document.getElementById('password').value = '';
+                    pendingUser = null;
                 })
                 .catch(err => {
                     console.warn('Backend update failed, using localStorage only:', err.message);
@@ -290,9 +294,12 @@
                     db[pendingUser.id].passwordSet = true;
                     localStorage.setItem('roomhy_owners_db', JSON.stringify(db));
                     
-                    const owner = db[pendingUser.id];
-                    const sessionUser = { loginId: pendingUser.id, role: 'owner', ownerId: pendingUser.id, name: owner.profile?.name || 'Owner' };
-                    completeLogin(sessionUser, 'propertyowner/ownerprofile.html');
+                    // Show success and reset to login form
+                    alert('✅ Password set successfully! Please login with your new password.');
+                    resetView();
+                    document.getElementById('login-id').value = pendingUser.id;
+                    document.getElementById('password').value = '';
+                    pendingUser = null;
                 });
             } catch (err) {
                 console.warn('Exception updating password, using localStorage:', err.message);
@@ -303,9 +310,12 @@
                 db[pendingUser.id].passwordSet = true;
                 localStorage.setItem('roomhy_owners_db', JSON.stringify(db));
                 
-                const owner = db[pendingUser.id];
-                const sessionUser = { loginId: pendingUser.id, role: 'owner', ownerId: pendingUser.id, name: owner.profile?.name || 'Owner' };
-                completeLogin(sessionUser, 'propertyowner/ownerprofile.html');
+                // Show success and reset to login form
+                alert('✅ Password set successfully! Please login with your new password.');
+                resetView();
+                document.getElementById('login-id').value = pendingUser.id;
+                document.getElementById('password').value = '';
+                pendingUser = null;
             }
         } else if (pendingUser.role === 'tenant') {
             const tenants = JSON.parse(localStorage.getItem('roomhy_tenants') || '[]');
@@ -316,9 +326,12 @@
                 tenants[idx].passwordSet = true;
                 localStorage.setItem('roomhy_tenants', JSON.stringify(tenants));
                 
-                const t = tenants[idx];
-                const sessionUser = { loginId: t.loginId, role: 'tenant', tenantId: t.id, name: t.name };
-                completeLogin(sessionUser, 'tenant/tenantprofile.html'); // Start onboarding: Profile → KYC → Agreement → Dashboard
+                // Show success and reset to login form
+                alert('✅ Password set successfully! Please login with your new password.');
+                resetView();
+                document.getElementById('login-id').value = pendingUser.id;
+                document.getElementById('password').value = '';
+                pendingUser = null;
             }
         }
     }
