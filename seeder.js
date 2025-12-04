@@ -47,18 +47,48 @@ function initializeSeeder() {
     console.log("✅ Employees DB initialized (empty)");
 
     // ============================================
-    // 3. PROPERTY OWNERS DATABASE (Empty - created by Super Admin)
+    // 3. PROPERTY OWNERS DATABASE (Sample owner for testing)
     // ============================================
-    const ownersDb = [];
+    const ownersDb = {
+        'ROOMHY001': {
+            id: 'ROOMHY001',
+            email: 'owner@roomhy.com',
+            phone: '9876543210',
+            profile: {
+                name: 'John Owner',
+                company: 'RoomHy Properties'
+            },
+            credentials: {
+                password: 'owner@123',
+                firstTime: false
+            },
+            passwordSet: true,
+            createdAt: new Date().toISOString()
+        }
+    };
     localStorage.setItem('roomhy_owners_db', JSON.stringify(ownersDb));
-    console.log("✅ Property Owners DB initialized (empty)");
+    console.log("✅ Property Owners DB initialized with sample owner (ID: ROOMHY001, Pass: owner@123)");
 
     // ============================================
-    // 4. TENANTS DATABASE (Empty - created by Property Owner)
+    // 4. TENANTS DATABASE (Sample tenant for testing)
     // ============================================
-    const tenantsDb = [];
+    const tenantsDb = [
+        {
+            id: 'TNT001',
+            loginId: 'TNT001',
+            email: 'tenant@roomhy.com',
+            phone: '9876543211',
+            name: 'Jane Tenant',
+            password: 'tenant@123',
+            tempPassword: null,
+            profileFilled: true,
+            kycStatus: 'approved',
+            agreementSigned: true,
+            createdAt: new Date().toISOString()
+        }
+    ];
     localStorage.setItem('roomhy_tenants', JSON.stringify(tenantsDb));
-    console.log("✅ Tenants DB initialized (empty)");
+    console.log("✅ Tenants DB initialized with sample tenant (ID: TNT001, Pass: tenant@123)");
 
     // ============================================
     // 5. PROPERTIES DATABASE (Empty)
