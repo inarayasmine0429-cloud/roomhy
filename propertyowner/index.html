@@ -230,7 +230,6 @@
     function showSetPass() {
         document.getElementById('login-form').classList.add('hidden');
         document.getElementById('setpass-form').classList.remove('hidden');
-        document.getElementById('password').value = ''; // Clear old pass
     }
 
     function resetView() {
@@ -258,22 +257,44 @@
 
         // UPDATE PASSWORD IN DB (Based on Role)
         if (pendingUser.role === 'owner') {
-            const db = JSON.parse(localStorage.getItem('roomhy_owners_db') || '{}');
-            if (db[pendingUser.id]) {
-                // Update credentials
-                db[pendingUser.id].credentials = { password: p1, firstTime: false }; 
-                db[pendingUser.id].passwordSet = true; // Flag as set
-                
-                localStorage.setItem('roomhy_owners_db', JSON.stringify(db));
-                
-                // IMPORTANT: Do NOT auto-login. Send back to Login screen.
+            const pendingId = pendingUser.id; // Capture ID before potential nullification
+            
+            // Try Backend Update First
+            fetch(`/api/owners/${encodeURIComponent(pendingId)}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    credentials: { password: p1, firstTime: false }
+                })
+            })
+            .then(res => {
+                if (!res.ok) throw new Error(`API error: ${res.status}`);
+                return res.json();
+            })
+            .then(updated => {
                 alert('✅ Password set successfully! Please login again with your new password.');
                 resetView();
-                document.getElementById('login-id').value = pendingUser.id; // Pre-fill ID
-            }
+                document.getElementById('login-id').value = pendingId;
+            })
+            .catch(err => {
+                // Fallback to localStorage
+                const db = JSON.parse(localStorage.getItem('roomhy_owners_db') || '{}');
+                if (db[pendingId]) {
+                    // Update credentials
+                    db[pendingId].credentials = { password: p1, firstTime: false }; 
+                    db[pendingId].passwordSet = true; // Flag as set
+                    
+                    localStorage.setItem('roomhy_owners_db', JSON.stringify(db));
+                    
+                    alert('✅ Password set successfully! Please login again with your new password.');
+                    resetView();
+                    document.getElementById('login-id').value = pendingId; 
+                }
+            });
         } else if (pendingUser.role === 'tenant') {
+            const pendingId = pendingUser.id; // Capture ID
             const tenants = JSON.parse(localStorage.getItem('roomhy_tenants') || '[]');
-            const idx = tenants.findIndex(t => t.loginId === pendingUser.id);
+            const idx = tenants.findIndex(t => t.loginId === pendingId);
             if (idx > -1) {
                 tenants[idx].password = p1;
                 tenants[idx].tempPassword = null; // Remove temp pass
@@ -281,10 +302,9 @@
                 
                 localStorage.setItem('roomhy_tenants', JSON.stringify(tenants));
                 
-                // IMPORTANT: Do NOT auto-login. Send back to Login screen.
                 alert('✅ Password set successfully! Please login again with your new password.');
                 resetView();
-                document.getElementById('login-id').value = pendingUser.id; // Pre-fill ID
+                document.getElementById('login-id').value = pendingId;
             }
         }
     }
