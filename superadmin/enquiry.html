@@ -399,18 +399,57 @@
                 allVisits[index].generatedCredentials = { loginId: mockId, tempPassword: tempPass };
                 localStorage.setItem('roomhy_visits', JSON.stringify(allVisits));
 
-                // 3. Save to Owners DB
-                if (!db[mockId]) db[mockId] = {};
-                db[mockId].profile = {
+                // 3. Save to Owners DB (persist to backend via API)
+                const ownerPayload = {
+                    loginId: mockId,
                     name: visit.propertyInfo.ownerName,
                     phone: visit.propertyInfo.contactPhone,
                     address: visit.propertyInfo.address,
                     locationCode: locationCode,
-                    loginId: mockId
+                    credentials: { password: tempPass },
+                    kyc: { status: 'pending' }
                 };
-                db[mockId].credentials = { password: tempPass };
-                db[mockId].kyc = { status: 'pending' };
-                localStorage.setItem('roomhy_owners_db', JSON.stringify(db));
+
+                // Try to POST to backend. If backend not available, fall back to localStorage.
+                try {
+                    fetch('/api/owners', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(ownerPayload)
+                    })
+                    .then(res => {
+                        if (!res.ok) throw new Error('API save failed');
+                        return res.json();
+                    })
+                    .then(created => console.log('Owner created on backend:', created))
+                    .catch(err => {
+                        console.warn('Backend owner save failed, falling back to localStorage:', err.message);
+                        if (!db[mockId]) db[mockId] = {};
+                        db[mockId].profile = {
+                            name: visit.propertyInfo.ownerName,
+                            phone: visit.propertyInfo.contactPhone,
+                            address: visit.propertyInfo.address,
+                            locationCode: locationCode,
+                            loginId: mockId
+                        };
+                        db[mockId].credentials = { password: tempPass };
+                        db[mockId].kyc = { status: 'pending' };
+                        localStorage.setItem('roomhy_owners_db', JSON.stringify(db));
+                    });
+                } catch (err) {
+                    console.warn('Exception posting owner to backend, using localStorage:', err.message);
+                    if (!db[mockId]) db[mockId] = {};
+                    db[mockId].profile = {
+                        name: visit.propertyInfo.ownerName,
+                        phone: visit.propertyInfo.contactPhone,
+                        address: visit.propertyInfo.address,
+                        locationCode: locationCode,
+                        loginId: mockId
+                    };
+                    db[mockId].credentials = { password: tempPass };
+                    db[mockId].kyc = { status: 'pending' };
+                    localStorage.setItem('roomhy_owners_db', JSON.stringify(db));
+                }
 
                 // 4. Save to General Leads DB (New Requirement)
                 const leads = JSON.parse(localStorage.getItem('roomhy_general_leads') || '[]');

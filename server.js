@@ -42,6 +42,7 @@ app.use('/api/tenants', require('./roomhy-backend/routes/tenantRoutes'));
 app.use('/api/visits', require('./roomhy-backend/routes/visitRoutes'));
 app.use('/api/rooms', require('./roomhy-backend/routes/roomRoutes'));
 app.use('/api/notifications', require('./roomhy-backend/routes/notificationRoutes'));
+app.use('/api/owners', require('./roomhy-backend/routes/ownerRoutes'));
 
 const PORT = process.env.PORT || 5000;
 

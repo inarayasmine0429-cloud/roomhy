@@ -110,29 +110,46 @@
         box.classList.remove("hidden");
     }
 
-    function handleLogin() {
+    async function handleLogin() {
         const id = document.getElementById('login-id').value.trim().toUpperCase();
         const pass = document.getElementById('password').value.trim();
         const errorBox = document.getElementById('error-msg');
         errorBox.classList.add('hidden');
 
         console.log('🔍 Login attempt for ID:', id);
-        
-        // 1. Try Property Owner Login
+
+        // 1. Try Property Owner Login (use API first, fallback to localStorage)
         if (id.startsWith('ROOMHY')) {
-            const rawDb = localStorage.getItem('roomhy_owners_db');
-            console.log('📦 roomhy_owners_db raw:', rawDb);
-            
-            const db = JSON.parse(rawDb || '{}');
-            console.log('📦 roomhy_owners_db parsed:', db);
-            console.log('🔑 Available owner IDs:', Object.keys(db));
-            
-            const owner = db[id];
-            console.log('👤 Looking for owner:', id, '- Found:', !!owner);
+            let owner = null;
+
+            // Try fetching from backend API
+            try {
+                const res = await fetch(`/api/owners/${encodeURIComponent(id)}`);
+                if (res.ok) {
+                    owner = await res.json();
+                    console.log('🌐 Owner fetched from API:', owner.loginId || owner);
+                } else if (res.status === 404) {
+                    console.log('🌐 Owner not found on API, will fallback to localStorage');
+                } else {
+                    console.warn('🌐 Owner API returned status', res.status, ' — falling back to localStorage');
+                }
+            } catch (err) {
+                console.warn('🌐 Owner API fetch failed, falling back to localStorage:', err.message);
+            }
+
+            // Fallback to localStorage if API did not return owner
+            if (!owner) {
+                const rawDb = localStorage.getItem('roomhy_owners_db');
+                console.log('📦 roomhy_owners_db raw (fallback):', rawDb);
+                const db = JSON.parse(rawDb || '{}');
+                owner = db[id] || null;
+                console.log('📦 Owner from localStorage:', !!owner);
+            }
 
             if (!owner) {
-                console.warn('❌ Owner not found. Available owners:', Object.keys(db).join(', '));
-                // Show user what owners are available
+                // No owner available
+                const rawDb = localStorage.getItem('roomhy_owners_db') || '{}';
+                const db = JSON.parse(rawDb);
                 const availableIds = Object.keys(db);
                 if (availableIds.length === 0) {
                     return showError('No owners registered yet. Please ask Super Admin to approve your enquiry first.');
@@ -140,21 +157,21 @@
                     return showError(`Owner ID not found. Available: ${availableIds.join(', ')}`);
                 }
             }
-            
-            // Check Creds
-            const storedPass = owner.credentials?.password || owner.password; // Legacy support
+
+            // If owner object came from API, its structure is mongoose document; normalize to expected shape
+            const storedPass = (owner.credentials && (owner.credentials.password || owner.credentials.tempPassword)) || owner.password || (owner.credentials && owner.credentials.password) || null;
             console.log('🔐 Stored password exists:', !!storedPass, '- Matches input:', storedPass === pass);
-            
+
             if (storedPass === pass) {
                 // Check if First Time
-                if (owner.credentials?.firstTime || !owner.passwordSet) {
+                if ((owner.credentials && owner.credentials.firstTime) || !owner.passwordSet) {
                     pendingUser = { id: id, role: 'owner', type: 'owner' };
                     showSetPass();
                     return;
                 }
-                
-                // Success - set in both storages for Render compatibility
-                const sessionUser = { loginId: id, role: 'owner', ownerId: id, name: owner.profile?.name || 'Owner' };
+
+                // Success - set in both storages for compatibility
+                const sessionUser = { loginId: id, role: 'owner', ownerId: id, name: (owner.profile && owner.profile.name) || owner.name || 'Owner' };
                 sessionStorage.setItem('owner_session', JSON.stringify(sessionUser));
                 localStorage.setItem('owner_session', JSON.stringify(sessionUser));
                 console.log('✅ Owner login successful:', id);
