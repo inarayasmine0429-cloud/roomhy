@@ -391,7 +391,9 @@
                     if (!isNaN(numPart) && numPart > maxNum) maxNum = numPart;
                 });
                 const nextNum = maxNum + 1;
-                const mockId = `ROOMHY${String(nextNum).padStart(3, '0')}`;
+                // Use timestamp for uniqueness in ID (avoids duplicate IDs on Render)
+                const uniqueSuffix = Date.now().toString().slice(-5);
+                const mockId = `ROOMHY${String(nextNum).padStart(3, '0')}_${uniqueSuffix}`;
                 const tempPass = "pass" + Math.floor(1000 + Math.random() * 9000);
 
                 allVisits[index].generatedCredentials = { loginId: mockId, tempPassword: tempPass };
