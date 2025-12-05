@@ -104,13 +104,38 @@
             }
         });
 
-        function saveAndNext() {
+        async function saveAndNext() {
             const loginId = document.getElementById('login-id').value;
             const name = document.getElementById('full-name').value;
             const phone = document.getElementById('phone').value;
             const email = document.getElementById('email').value;
             const address = document.getElementById('address').value;
 
+            // Primary: Save to MongoDB via API
+            try {
+                const apiRes = await fetch(`/api/owners/${encodeURIComponent(loginId)}/profile`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, phone, email, address })
+                });
+                if (apiRes.ok) {
+                    const updatedOwner = await apiRes.json();
+                    console.log('✅ Profile saved to MongoDB:', updatedOwner);
+                    // Update session with new data
+                    user.name = name;
+                    user.email = email;
+                    localStorage.setItem('user', JSON.stringify(user));
+                    sessionStorage.setItem('owner_session', JSON.stringify(user));
+                    window.location.href = 'ownerkyc.html';
+                    return;
+                } else {
+                    console.warn('⚠️ API failed:', apiRes.status);
+                }
+            } catch (err) {
+                console.warn('🌐 API save failed, using localStorage fallback:', err.message);
+            }
+
+            // Fallback: Save to localStorage if API fails
             const db = JSON.parse(localStorage.getItem('roomhy_owners_db') || '{}');
             if (!db[loginId]) db[loginId] = { kyc: { status: 'pending'} };
             
