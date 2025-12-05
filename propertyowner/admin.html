@@ -214,21 +214,26 @@
                 return;
             }
 
-            // Enforce onboarding: ensure profile completed and KYC submitted
+            // Enforce onboarding: check profileFilled flag or verify required profile fields
             const db = JSON.parse(localStorage.getItem('roomhy_owners_db') || '{}');
             const ownerRecord = db[user.loginId] || {};
             const profile = ownerRecord.profile || {};
             const kycStatus = ownerRecord.kyc ? ownerRecord.kyc.status : 'pending';
 
-            // If profile is missing key fields, redirect to profile setup
-            const profileIncomplete = !profile.name || !profile.email || !profile.address;
+            // Check if profile is marked as completed or has required fields
+            const hasProfileFlag = ownerRecord.profileFilled === true;
+            const hasProfileFields = profile.name && profile.email && profile.address;
+            const profileIncomplete = !hasProfileFlag && !hasProfileFields;
+            
             if (profileIncomplete) {
+                console.warn('Profile incomplete, redirecting to profile setup');
                 try { window.location.href = 'ownerprofile.html'; } catch (e) { alert('Please complete your profile to continue.'); }
                 return;
             }
 
             // If KYC not submitted/verified, redirect to KYC
             if (kycStatus !== 'submitted' && kycStatus !== 'verified') {
+                console.warn('KYC incomplete, redirecting to KYC');
                 try { window.location.href = 'ownerkyc.html'; } catch (e) { alert('Please complete KYC to access the dashboard.'); }
                 return;
             }
