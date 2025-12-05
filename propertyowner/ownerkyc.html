@@ -206,8 +206,8 @@
                     `;
                 }
             } else {
-                alert("Session Error. Please login again.");
-                try { window.location.href = 'ownerlogin.html'; } catch(e) {}
+                // If session missing, redirect to owner dashboard so user can re-enter flow
+                try { window.location.href = 'admin.html'; } catch(e) { console.warn('Redirect failed', e); }
             }
         }
     </script>
