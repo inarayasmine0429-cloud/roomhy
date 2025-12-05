@@ -15,19 +15,17 @@
 </head>
 <body class="text-slate-800">
     <div class="min-h-screen flex flex-col">
-        
-        <!-- Minimal Header -->
         <header class="bg-white h-16 flex items-center justify-between px-6 shadow-sm z-10">
             <div class="flex items-center gap-2">
                 <div class="bg-blue-600 text-white p-1.5 rounded-lg"><i data-lucide="home" class="w-5 h-5"></i></div>
                 <h1 class="text-xl font-bold text-slate-800">Roomhy Onboarding</h1>
             </div>
+            <div class="text-sm text-slate-500">Step 2 of 3: Verification</div>
         </header>
 
         <main class="flex-1 overflow-y-auto p-6">
             <div class="max-w-3xl mx-auto">
-                
-                <!-- Stepper -->
+                 <!-- Stepper -->
                 <div class="flex items-center justify-center mb-8">
                     <div class="flex items-center">
                         <div class="flex flex-col items-center">
@@ -50,47 +48,33 @@
                 <div class="bg-white rounded-xl shadow-md border border-gray-200 p-6 md:p-8">
                     <div class="mb-6">
                         <h1 class="text-2xl font-bold text-gray-900 mb-2">Identity Verification</h1>
-                        <p class="text-gray-500">Upload valid identity documents to activate your property owner account.</p>
+                        <p class="text-gray-500">Upload your Aadhar card to activate your dashboard.</p>
                     </div>
                     
                     <form onsubmit="event.preventDefault(); submitKYC();" class="space-y-6">
                         <div>
-                            <label for="aadhar-number" class="block text-sm font-medium text-gray-700 mb-2">Aadhar Number <span class="text-red-500">*</span></label>
-                            <div class="relative">
-                                <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
-                                    <i data-lucide="credit-card" class="w-5 h-5"></i>
-                                </span>
-                                <input type="text" id="aadhar-number" class="w-full pl-10 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none tracking-widest" placeholder="0000 0000 0000" maxlength="14" required>
-                            </div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Aadhar Number</label>
+                            <input type="text" id="aadhar-number" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none tracking-widest" placeholder="0000 0000 0000" maxlength="14" required>
                         </div>
 
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Upload Document <span class="text-red-500">*</span></label>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Upload Document</label>
                             <label class="file-upload-box block p-8 text-center cursor-pointer rounded-xl bg-gray-50">
-                                <input type="file" class="hidden" id="id-proof" accept=".pdf,.jpg,.jpeg,.png" required>
+                                <input type="file" class="hidden" id="id-proof" accept="image/*,.pdf" required>
                                 <div id="upload-content">
                                     <i data-lucide="upload-cloud" class="w-10 h-10 mx-auto text-blue-500 mb-3"></i>
-                                    <span class="text-blue-600 font-semibold text-sm block">Click to upload Aadhar Card or PAN</span>
-                                    <span class="text-xs text-gray-400 mt-1 block">Supports JPG, PNG, PDF (Max 5MB)</span>
+                                    <span class="text-blue-600 font-semibold text-sm block">Click to upload Aadhar Card</span>
                                 </div>
                                 <div id="file-preview" class="hidden flex-col items-center">
                                     <i data-lucide="file-check" class="w-10 h-10 text-green-500 mb-2"></i>
                                     <span class="text-green-700 font-medium text-sm" id="file-name">filename.jpg</span>
-                                    <span class="text-xs text-blue-600 mt-2 hover:underline">Change File</span>
                                 </div>
                             </label>
                         </div>
 
-                        <div class="bg-blue-50 border border-blue-100 rounded-lg p-4 flex items-start gap-3">
-                            <i data-lucide="info" class="w-5 h-5 text-blue-600 mt-0.5"></i>
-                            <p class="text-sm text-blue-800">Your documents are stored securely and encrypted. They are only visible to authorized administrators for verification purposes.</p>
-                        </div>
-                        
-                        <div class="pt-4">
-                            <button type="submit" class="w-full bg-green-600 text-white font-bold py-3 rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center shadow-lg">
-                                Submit & Launch Dashboard <i data-lucide="rocket" class="w-5 h-5 ml-2"></i>
-                            </button>
-                        </div>
+                        <button type="submit" class="w-full bg-green-600 text-white font-bold py-3 rounded-lg hover:bg-green-700 transition-colors shadow-lg mt-4">
+                            Submit & Launch Dashboard
+                        </button>
                     </form>
                 </div>
             </div>
@@ -100,25 +84,9 @@
     <script>
         lucide.createIcons();
         let base64Image = "";
-
-        // Auth Check with Error Handling
         const user = JSON.parse(localStorage.getItem('user') || 'null');
-        if (!user || user.role !== 'owner') {
-             try {
-                window.location.href = 'ownerlogin.html';
-            } catch (e) {
-                console.error("Navigation error:", e);
-                document.body.innerHTML = `
-                    <div class="flex items-center justify-center h-screen bg-gray-100">
-                        <div class="text-center">
-                            <h1 class="text-2xl font-bold text-slate-800 mb-4">Access Denied</h1>
-                            <a href="ownerlogin.html" class="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 inline-block">Go to Login</a>
-                        </div>
-                    </div>
-                `;
-                throw new Error("Redirecting...");
-            }
-        }
+        
+        if (!user) window.location.href = 'ownerlogin.html';
 
         // Aadhar Formatting
         document.getElementById('aadhar-number').addEventListener('input', function (e) {
@@ -131,17 +99,14 @@
             e.target.value = formattedValue;
         });
 
-        // File Upload Handling
+        // File Upload
         document.getElementById('id-proof').addEventListener('change', (e) => {
             const file = e.target.files[0];
             if(file) {
-                // UI Update
                 document.getElementById('upload-content').classList.add('hidden');
                 document.getElementById('file-preview').classList.remove('hidden');
                 document.getElementById('file-preview').classList.add('flex');
                 document.getElementById('file-name').innerText = file.name;
-                
-                // Convert to Base64
                 const reader = new FileReader();
                 reader.onload = function(evt) { base64Image = evt.target.result; };
                 reader.readAsDataURL(file);
@@ -150,73 +115,26 @@
 
         function submitKYC() {
             const aadhar = document.getElementById('aadhar-number').value.replace(/\s/g, '');
-            
-            if(aadhar.length !== 12) {
-                alert("Please enter a valid 12-digit Aadhar number.");
-                return;
-            }
-            if(!base64Image) {
-                alert("Please upload an identity document.");
-                return;
-            }
+            if(aadhar.length !== 12) { alert("Invalid Aadhar Number"); return; }
+            if(!base64Image) { alert("Please upload document"); return; }
 
-            // Update DB
             const db = JSON.parse(localStorage.getItem('roomhy_owners_db') || '{}');
-            if(user.loginId && db[user.loginId]) {
+            if(db[user.loginId]) {
                 db[user.loginId].kyc = { 
-                    status: 'submitted', // Mark as submitted
+                    status: 'submitted', 
                     aadharNumber: aadhar,
                     documentImage: base64Image,
                     submittedAt: new Date().toISOString()
                 };
+                
+                // Also update profileFilled just in case
+                db[user.loginId].profileFilled = true;
+                
                 localStorage.setItem('roomhy_owners_db', JSON.stringify(db));
+                alert("🎉 KYC Submitted! Welcome to RoomHy Dashboard.");
 
-                // Refresh session and user objects so the app doesn't require re-login
-                try {
-                    const updated = db[user.loginId];
-                    const sessionUser = {
-                        loginId: updated.loginId || user.loginId,
-                        role: 'owner',
-                        ownerId: updated.loginId || user.loginId,
-                        name: (updated.profile && updated.profile.name) || updated.name || user.name || 'Owner'
-                    };
-                    sessionStorage.setItem('owner_session', JSON.stringify(sessionUser));
-                    localStorage.setItem('owner_session', JSON.stringify(sessionUser));
-                    // Also update generic 'user' key used by pages
-                    localStorage.setItem('user', JSON.stringify(sessionUser));
-                } catch (err) {
-                    console.warn('Failed to refresh session after KYC:', err.message);
-                }
-
-                // Success Animation
-                alert("🎉 Verification Submitted! Welcome to your Dashboard.");
-
-                // Mark profile as completed and redirect to Dashboard (Flow Complete)
-                try {
-                    // Ensure profileFilled so future logins go straight to dashboard
-                    if (user.loginId && db[user.loginId]) {
-                        db[user.loginId].profileFilled = true;
-                        // keep kyc status set (already set above)
-                        localStorage.setItem('roomhy_owners_db', JSON.stringify(db));
-                    }
-                } catch (e) { console.warn('Failed to mark profileFilled', e); }
-
-                try {
-                    window.location.href = 'admin.html';
-                } catch (e) {
-                    document.body.innerHTML = `
-                        <div class="flex items-center justify-center h-screen bg-gray-100">
-                            <div class="text-center">
-                                <h1 class="text-2xl font-bold text-green-600 mb-4">Success!</h1>
-                                <p class="text-slate-600 mb-6">Your onboarding is complete.</p>
-                                <a href="admin.html" class="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 inline-block">Open Dashboard</a>
-                            </div>
-                        </div>
-                    `;
-                }
-            } else {
-                // If session missing, redirect to owner dashboard so user can re-enter flow
-                try { window.location.href = 'admin.html'; } catch(e) { console.warn('Redirect failed', e); }
+                // FLOW: 3. KYC (Done) -> 4. Dashboard
+                window.location.href = 'admin.html';
             }
         }
     </script>

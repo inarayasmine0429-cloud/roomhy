@@ -217,11 +217,11 @@
             <div class="mt-6 bg-purple-50 p-6 rounded-xl border border-purple-100 text-left relative overflow-hidden">
                 <div class="mb-4 relative z-10">
                     <label class="text-xs text-purple-600 font-bold uppercase tracking-wider">Generated Owner ID</label>
-                    <div class="text-2xl font-mono font-bold text-gray-900 mt-1" id="modalOwnerId">---</div>
+                    <div class="text-2xl font-mono font-bold text-gray-900 mt-1 select-all" id="modalOwnerId">---</div>
                 </div>
                 <div class="relative z-10">
                     <label class="text-xs text-purple-600 font-bold uppercase tracking-wider">Temporary Password</label>
-                    <div class="text-base font-mono text-gray-700 mt-1 bg-white px-2 py-1 rounded border border-purple-200 inline-block" id="modalPassword">---</div>
+                    <div class="text-base font-mono text-gray-700 mt-1 bg-white px-2 py-1 rounded border border-purple-200 inline-block select-all" id="modalPassword">---</div>
                 </div>
             </div>
             
@@ -241,35 +241,31 @@
 
     <script>
         lucide.createIcons();
-        const token = localStorage.getItem('token');
         
-        const isPreview = window.location.protocol === 'blob:' || window.location.href.includes('scf.usercontent');
-        if (isPreview) document.getElementById('demoModeIndicator').classList.remove('hidden');
-
-        function toggleSubmenu(id, element) {
-            const submenu = document.getElementById(id);
-            const chevron = element.querySelector('.lucide-chevron-down');
-            if (submenu.classList.contains('open')) {
-                submenu.classList.remove('open');
-                chevron.style.transform = 'rotate(0deg)';
-            } else {
-                submenu.classList.add('open');
-                chevron.style.transform = 'rotate(180deg)';
+        // --- AUTO SEED FOR DEMO IF EMPTY ---
+        (function autoSeed() {
+            const visits = JSON.parse(localStorage.getItem('roomhy_visits') || '[]');
+            if (visits.length === 0) {
+                // Seed a dummy pending visit so user can click "Approve"
+                const dummy = {
+                    _id: 'visit_' + Date.now(),
+                    status: 'submitted',
+                    submittedAt: new Date().toISOString(),
+                    propertyInfo: { 
+                        name: 'Luxury Villa', 
+                        ownerName: 'Ravi Kumar', 
+                        contactPhone: '9876543210', 
+                        address: '123 Anna Nagar, Chennai',
+                        locationCode: 'CH' 
+                    },
+                    areaManager: { name: 'Suresh Manager' },
+                    photos: ['https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=500']
+                };
+                visits.push(dummy);
+                localStorage.setItem('roomhy_visits', JSON.stringify(visits));
+                console.log("🌱 Seeded dummy visit for testing.");
             }
-        }
-
-        function toggleMobileMenu() {
-            const sidebar = document.getElementById('mobile-sidebar');
-            const overlay = document.getElementById('mobile-overlay');
-            if (sidebar.classList.contains('-translate-x-full')) {
-                sidebar.classList.remove('-translate-x-full');
-                overlay.classList.remove('hidden');
-            } else {
-                sidebar.classList.add('-translate-x-full');
-                overlay.classList.add('hidden');
-            }
-        }
-        document.getElementById('mobile-menu-open').addEventListener('click', toggleMobileMenu);
+        })();
 
         // --- Fetch Data ---
         async function fetchPendingApprovals() {
@@ -343,7 +339,6 @@
             const tbody = document.getElementById('leadsTableBody');
             tbody.innerHTML = '';
             
-            // Get Leads from roomhy_general_leads DB
             const leads = JSON.parse(localStorage.getItem('roomhy_general_leads') || '[]');
             
             if(leads.length === 0) {
@@ -368,7 +363,6 @@
         }
 
         // --- Action Logic ---
-
         async function approveVisit(id) {
             if(!confirm('Accept this property and generate Owner ID?')) return;
 
@@ -391,67 +385,27 @@
                     if (!isNaN(numPart) && numPart > maxNum) maxNum = numPart;
                 });
                 const nextNum = maxNum + 1;
-                // Use timestamp for uniqueness in ID (avoids duplicate IDs on Render)
-                const uniqueSuffix = Date.now().toString().slice(-5);
-                const mockId = `ROOMHY${String(nextNum).padStart(3, '0')}_${uniqueSuffix}`;
-                const tempPass = "pass" + Math.floor(1000 + Math.random() * 9000);
+                const uniqueSuffix = Date.now().toString().slice(-4);
+                const mockId = `ROOMHY${String(nextNum).padStart(3, '0')}-${uniqueSuffix}`;
+                const tempPass = "temp" + Math.floor(1000 + Math.random() * 9000);
 
                 allVisits[index].generatedCredentials = { loginId: mockId, tempPassword: tempPass };
                 localStorage.setItem('roomhy_visits', JSON.stringify(allVisits));
 
-                // 3. Save to Owners DB (persist to backend via API)
-                const ownerPayload = {
-                    loginId: mockId,
+                // 3. Save to Owners DB
+                if (!db[mockId]) db[mockId] = {};
+                db[mockId].profile = {
                     name: visit.propertyInfo.ownerName,
                     phone: visit.propertyInfo.contactPhone,
                     address: visit.propertyInfo.address,
                     locationCode: locationCode,
-                    credentials: { password: tempPass },
-                    kyc: { status: 'pending' }
+                    loginId: mockId
                 };
+                db[mockId].credentials = { password: tempPass, firstTime: true };
+                db[mockId].kyc = { status: 'pending' };
+                localStorage.setItem('roomhy_owners_db', JSON.stringify(db));
 
-                // Try to POST to backend. If backend not available, fall back to localStorage.
-                try {
-                    fetch('/api/owners', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(ownerPayload)
-                    })
-                    .then(res => {
-                        if (!res.ok) throw new Error('API save failed');
-                        return res.json();
-                    })
-                    .then(created => console.log('Owner created on backend:', created))
-                    .catch(err => {
-                        console.warn('Backend owner save failed, falling back to localStorage:', err.message);
-                        if (!db[mockId]) db[mockId] = {};
-                        db[mockId].profile = {
-                            name: visit.propertyInfo.ownerName,
-                            phone: visit.propertyInfo.contactPhone,
-                            address: visit.propertyInfo.address,
-                            locationCode: locationCode,
-                            loginId: mockId
-                        };
-                        db[mockId].credentials = { password: tempPass };
-                        db[mockId].kyc = { status: 'pending' };
-                        localStorage.setItem('roomhy_owners_db', JSON.stringify(db));
-                    });
-                } catch (err) {
-                    console.warn('Exception posting owner to backend, using localStorage:', err.message);
-                    if (!db[mockId]) db[mockId] = {};
-                    db[mockId].profile = {
-                        name: visit.propertyInfo.ownerName,
-                        phone: visit.propertyInfo.contactPhone,
-                        address: visit.propertyInfo.address,
-                        locationCode: locationCode,
-                        loginId: mockId
-                    };
-                    db[mockId].credentials = { password: tempPass };
-                    db[mockId].kyc = { status: 'pending' };
-                    localStorage.setItem('roomhy_owners_db', JSON.stringify(db));
-                }
-
-                // 4. Save to General Leads DB (New Requirement)
+                // 4. Save to General Leads DB
                 const leads = JSON.parse(localStorage.getItem('roomhy_general_leads') || '[]');
                 leads.push({
                     propertyName: visit.propertyInfo.name,
@@ -464,21 +418,16 @@
                 localStorage.setItem('roomhy_general_leads', JSON.stringify(leads));
 
                 showSuccessModal(mockId, tempPass);
-            } else {
-                alert("Error: Visit not found.");
             }
         }
         
         async function rejectVisit(id) {
              if(!confirm('Are you sure you want to reject this property request?')) return;
-             
              const allVisits = JSON.parse(localStorage.getItem('roomhy_visits') || '[]');
              const index = allVisits.findIndex(v => v._id === id);
-             
              if(index !== -1) {
                  allVisits[index].status = 'rejected';
                  localStorage.setItem('roomhy_visits', JSON.stringify(allVisits));
-                 alert("Request Rejected.");
                  fetchPendingApprovals();
              }
         }
@@ -532,6 +481,22 @@
             localStorage.removeItem('user');
             window.location.reload();
         });
+        
+        // Mobile menu helpers
+        document.getElementById('mobile-menu-open').addEventListener('click', () => {
+             // Basic mobile toggle logic for sidebar visibility
+             const sidebar = document.querySelector('.sidebar');
+             sidebar.classList.toggle('hidden');
+             sidebar.classList.toggle('flex');
+             sidebar.classList.toggle('fixed');
+             sidebar.classList.toggle('inset-0');
+             sidebar.classList.toggle('w-full');
+        });
+
+        function toggleSubmenu(id, element) {
+            const submenu = document.getElementById(id);
+            submenu.classList.toggle('open');
+        }
 
         fetchPendingApprovals();
     </script>
