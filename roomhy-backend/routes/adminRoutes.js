@@ -1,8 +1,21 @@
 const express = require('express');
 const router = express.Router();
 const adminController = require('../controllers/adminController');
+const VisitReport = require('../models/VisitReport'); // Ensure model is imported
 
-// Approve visit report and create property + owner
-router.post('/visits/:id/approve', adminController.approveVisit);
+// Route to fetch visits (used by Enquiry page)
+router.get('/visits', async (req, res) => {
+    try {
+        const { status } = req.query;
+        const filter = status ? { status } : {};
+        const visits = await VisitReport.find(filter).populate('areaManager', 'name');
+        res.json(visits);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Route to approve visit
+router.post('/approve-visit/:id', adminController.approveVisit);
 
 module.exports = router;
