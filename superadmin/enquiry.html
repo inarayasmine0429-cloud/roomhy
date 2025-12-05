@@ -185,9 +185,8 @@
         // --- MONGODB API LOGIC ---
 
         // ⚠️ CONFIGURATION: Backend URL
-        // If running locally or in preview, point to your local server (usually port 5000)
-        // If deployed, this can be empty string '' to use relative path
-        const API_BASE_URL = 'http://localhost:5000'; 
+        // Use empty string '' for relative URLs that work on both local and Render
+        const API_BASE_URL = ''; 
 
         // 1. Fetch Visits from Backend API
         async function fetchVisits() {
@@ -195,7 +194,7 @@
             list.innerHTML = '<div class="p-8 text-center text-gray-400">Loading...</div>';
             
             try {
-                // FIX: Use full URL to avoid "Failed to parse URL" in blob/preview mode
+                // Use relative URL that works on both localhost and Render
                 const res = await fetch(`${API_BASE_URL}/api/admin/visits?status=submitted`); 
                 
                 if (!res.ok) throw new Error('API Error: ' + res.statusText);
