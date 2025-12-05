@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Roomhy - Enquiries (DB Integrated)</title>
+    <title>Roomhy - Enquiries & Approvals</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -20,6 +20,9 @@
         .submenu { background-color: #0f172a; overflow: hidden; transition: max-height 0.3s ease-in-out; max-height: 0; }
         .submenu.open { max-height: 500px; }
         .submenu a { padding-left: 3.5rem; font-size: 0.85rem; }
+        .tab-btn.active { border-bottom: 2px solid #9333ea; color: #9333ea; }
+        .data-table th { background: #f9fafb; padding: 12px 24px; font-size: 0.75rem; text-transform: uppercase; color: #6b7280; font-weight: 600; text-align: left; }
+        .data-table td { border-bottom: 1px solid #e5e7eb; padding: 16px 24px; font-size: 0.875rem; vertical-align: middle; }
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 4px; }
     </style>
@@ -89,12 +92,24 @@
                  <a href="profile.html" class="sidebar-link"><i data-lucide="user" class="w-5 h-5 mr-3"></i> Profile</a>
                  <a href="settings.html" class="sidebar-link"><i data-lucide="settings" class="w-5 h-5 mr-3"></i> Settings</a>
                  <a href="location.html" class="sidebar-link"><i data-lucide="globe" class="w-5 h-5 mr-3"></i> Locations</a>
+                 
+                 <!-- Settings Dropdown -->
+                 <div class="group">
+                    <div class="sidebar-link justify-between" onclick="toggleSubmenu('settings-submenu', this)">
+                        <div class="flex items-center"><i data-lucide="settings" class="w-5 h-5 mr-3"></i> Settings</div>
+                        <i data-lucide="chevron-down" class="w-4 h-4 transition-transform duration-200"></i>
+                    </div>
+                    <div id="settings-submenu" class="submenu">
+                        <a href="log.html" class="sidebar-link text-sm hover:text-white">Logs</a>
+                        <a href="security.html" class="sidebar-link text-sm hover:text-white">Security</a>
+                         <a href="backup.html" class="sidebar-link text-sm hover:text-white">Backup Settings</a>
+                    </div>
+                </div>
             </nav>
         </aside>
 
-        <!-- Main Content Wrapper -->
+        <!-- Main Content -->
         <div class="flex-1 flex flex-col overflow-hidden bg-[#f3f4f6]">
-            <!-- Header -->
             <header class="bg-white h-16 flex items-center justify-between px-6 shadow-sm border-b border-gray-200 z-10">
                 <div class="flex items-center">
                     <button id="mobile-menu-open" class="md:hidden mr-4 text-slate-500"><i data-lucide="menu" class="w-6 h-6"></i></button>
@@ -105,9 +120,7 @@
                     </div>
                 </div>
                 <div class="flex items-center gap-4">
-                    <div id="db-indicator" class="px-2 py-1 bg-green-100 text-green-800 text-xs font-bold rounded border border-green-200 flex items-center gap-1">
-                        <i data-lucide="database" class="w-3 h-3"></i> Atlas Connected
-                    </div>
+                    <div id="demoModeIndicator" class="hidden px-2 py-1 bg-yellow-100 text-yellow-800 text-xs font-bold rounded border border-yellow-200">Demo Mode</div>
                     <button class="text-slate-400 hover:text-slate-600"><i data-lucide="bell" class="w-5 h-5"></i></button>
                     <div class="relative group">
                         <button class="flex items-center gap-3 hover:bg-gray-50 p-1.5 rounded-full transition-colors">
@@ -124,49 +137,433 @@
                 </div>
             </header>
 
-            <!-- Main Content Area -->
             <main class="flex-1 overflow-y-auto p-8">
-                <div class="max-w-5xl mx-auto">
-                    <div class="flex justify-between items-center mb-6">
-                        <h1 class="text-2xl font-bold text-slate-800 flex items-center gap-2">
-                            <i data-lucide="database" class="text-green-600"></i> Enquiries & Approvals
-                        </h1>
-                    </div>
+                <div class="max-w-7xl mx-auto">
                     
-                    <!-- PENDING APPROVALS LIST -->
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-8">
-                        <div class="p-4 border-b bg-gray-50 font-bold text-gray-700 flex justify-between">
-                            <span>Pending Requests (MongoDB)</span>
-                            <button onclick="fetchVisits()" class="text-blue-600 text-sm hover:underline flex items-center gap-1">
-                                <i data-lucide="refresh-cw" class="w-3 h-3"></i> Refresh
-                            </button>
-                        </div>
-                        <div id="approvals-list" class="divide-y divide-gray-100 min-h-[100px]">
-                            <div class="p-8 text-center text-gray-400">Loading data...</div>
+                    <div class="flex justify-between items-center mb-6">
+                        <div>
+                            <h1 class="text-2xl font-bold text-slate-800">Approvals & Enquiries</h1>
+                            <p class="text-sm text-slate-500 mt-1">Manage pending property requests and general leads.</p>
                         </div>
                     </div>
+
+                    <!-- Tabs -->
+                    <div class="bg-white rounded-t-xl border-b border-gray-200 px-6 flex gap-8">
+                        <button onclick="switchTab('approvals')" class="tab-btn active py-4 text-sm font-medium text-gray-600 hover:text-purple-600 transition">
+                            Property Approvals <span id="approvalCount" class="ml-2 bg-red-100 text-red-600 py-0.5 px-2 rounded-full text-xs">0</span>
+                        </button>
+                        <button onclick="switchTab('leads')" class="tab-btn py-4 text-sm font-medium text-gray-500 hover:text-purple-600 transition">
+                            General Leads
+                        </button>
+                    </div>
+
+                    <!-- Tab Content: Property Approvals -->
+                    <div id="approvalsTab" class="bg-white rounded-b-xl shadow-sm border border-gray-200 border-t-0 min-h-[400px]">
+                        <div class="overflow-x-auto">
+                            <table class="w-full data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Date Submitted</th>
+                                        <th>Property Info</th>
+                                        <th>Address</th>
+                                        <th class="text-center">Images</th>
+                                        <th>Location Code</th>
+                                        <th>Area Manager</th>
+                                        <th class="text-right">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="approvalsTableBody">
+                                    <tr><td colspan="7" class="text-center py-8 text-gray-400">Loading pending requests...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Tab Content: General Leads -->
+                    <div id="leadsTab" class="hidden bg-white rounded-b-xl shadow-sm border border-gray-200 border-t-0 min-h-[400px]">
+                        <div class="overflow-x-auto">
+                            <table class="w-full data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Date Approved</th>
+                                        <th>Property Name</th>
+                                        <th>Owner Name</th>
+                                        <th>Phone</th>
+                                        <th>Address</th>
+                                        <th class="text-center">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="leadsTableBody">
+                                    <tr><td colspan="6" class="text-center py-8 text-gray-400">No general leads found.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
                 </div>
             </main>
         </div>
     </div>
 
+    <!-- Success Modal -->
+    <div id="successModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 backdrop-blur-sm">
+        <div class="bg-white rounded-lg w-full max-w-md p-6 shadow-xl text-center transform transition-all scale-100">
+            <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
+                <i data-lucide="check" class="w-8 h-8 text-green-600"></i>
+            </div>
+            <h3 class="text-xl font-bold text-gray-900">Property Approved!</h3>
+            <p class="text-sm text-gray-500 mt-2">Moved to General Leads & Credentials Generated.</p>
+            
+            <div class="mt-6 bg-purple-50 p-6 rounded-xl border border-purple-100 text-left relative overflow-hidden">
+                <div class="mb-4 relative z-10">
+                    <label class="text-xs text-purple-600 font-bold uppercase tracking-wider">Generated Owner ID</label>
+                    <div class="text-2xl font-mono font-bold text-gray-900 mt-1 select-all" id="modalOwnerId">---</div>
+                </div>
+                <div class="relative z-10">
+                    <label class="text-xs text-purple-600 font-bold uppercase tracking-wider">Temporary Password</label>
+                    <div class="text-base font-mono text-gray-700 mt-1 bg-white px-2 py-1 rounded border border-purple-200 inline-block select-all" id="modalPassword">---</div>
+                </div>
+            </div>
+            
+            <button onclick="closeModal()" class="mt-6 w-full bg-purple-600 text-white py-2.5 rounded-lg font-medium hover:bg-purple-700 transition shadow-lg shadow-purple-200">Done</button>
+        </div>
+    </div>
+    
+    <!-- Image Gallery Modal -->
+    <div id="imageModal" class="fixed inset-0 bg-black/90 hidden items-center justify-center z-[60] backdrop-blur-sm" onclick="closeImageModal()">
+        <div class="relative w-full max-w-4xl p-4" onclick="event.stopPropagation()">
+            <button onclick="closeImageModal()" class="absolute -top-10 right-0 text-white hover:text-gray-300"><i data-lucide="x" class="w-8 h-8"></i></button>
+            <div id="galleryGrid" class="grid grid-cols-2 md:grid-cols-3 gap-4 max-h-[80vh] overflow-y-auto">
+                <!-- Images will be injected here -->
+            </div>
+        </div>
+    </div>
+
     <script>
         lucide.createIcons();
+        
+        // --- FETCH VISITS FROM MONGODB ON PAGE LOAD ---
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchPendingApprovals();
+        });
 
-        // --- Sidebar Logic ---
-        function toggleSubmenu(id, element) {
-            const submenu = document.getElementById(id);
-            const chevron = element.querySelector('.lucide-chevron-down');
-            if (submenu.classList.contains('open')) {
-                submenu.classList.remove('open');
-                chevron.style.transform = 'rotate(0deg)';
-            } else {
-                submenu.classList.add('open');
-                chevron.style.transform = 'rotate(180deg)';
+        // --- Fetch Data ---
+        async function fetchPendingApprovals() {
+            const tbody = document.getElementById('approvalsTableBody');
+            const countBadge = document.getElementById('approvalCount');
+            
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-gray-400">Loading from database...</td></tr>';
+            
+            try {
+                // Primary: Fetch from MongoDB API
+                const res = await fetch('/api/admin/visits?status=submitted');
+                if (res.ok) {
+                    const pendingVisits = await res.json();
+                    console.log('✅ Visits fetched from MongoDB:', pendingVisits);
+                    renderTable(pendingVisits, tbody, countBadge);
+                    renderLeadsTable();
+                    return;
+                } else {
+                    console.warn('⚠️ API returned:', res.status);
+                }
+            } catch (err) {
+                console.warn('🌐 API fetch failed, using localStorage fallback:', err.message);
+            }
+            
+            // Fallback: Use localStorage if API fails
+            const allVisits = JSON.parse(localStorage.getItem('roomhy_visits') || '[]');
+            const pendingVisits = allVisits.filter(v => v.status === 'submitted');
+            renderTable(pendingVisits, tbody, countBadge);
+            renderLeadsTable();
+        }
+
+        function renderTable(visits, tbody, countBadge) {
+            countBadge.innerText = visits.length;
+            tbody.innerHTML = '';
+
+            if(visits.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="text-center py-12 text-gray-400">No pending approvals found.</td></tr>`;
+                return;
+            }
+
+            visits.forEach(visit => {
+                const date = new Date(visit.submittedAt).toLocaleDateString();
+                const mgrName = visit.areaManager ? visit.areaManager.name : 'Unknown';
+                const ownerInfo = visit.propertyInfo.ownerName || 'Unknown Owner';
+                const locationCode = visit.propertyInfo.locationCode || 'NA';
+                const address = visit.propertyInfo.address || '-';
+                
+                // Image Logic
+                let photos = visit.photos || [];
+                if(visit.imageBase64) photos.unshift(visit.imageBase64);
+                
+                let imgBtn = `<span class="text-xs text-gray-400">No Photos</span>`;
+                if(photos.length > 0) {
+                    imgBtn = `
+                        <button onclick='openGallery(${JSON.stringify(photos)})' class="flex items-center justify-center gap-1 bg-purple-50 text-purple-700 px-2 py-1 rounded text-xs border border-purple-100">
+                            <i data-lucide="image" class="w-3 h-3"></i> View (${photos.length})
+                        </button>`;
+                }
+
+                const row = `
+                    <tr class="hover:bg-gray-50 transition">
+                        <td class="text-gray-600 font-medium">${date}</td>
+                        <td>
+                            <p class="font-bold text-slate-800">${visit.propertyInfo.name}</p>
+                            <p class="text-xs text-gray-500">${ownerInfo} (${visit.propertyInfo.contactPhone})</p>
+                        </td>
+                        <td class="text-sm text-gray-600 max-w-xs truncate" title="${address}">${address}</td>
+                        <td class="text-center">${imgBtn}</td>
+                        <td><span class="bg-blue-50 text-blue-700 px-2 py-1 rounded text-xs font-mono font-bold border border-blue-100">${locationCode}</span></td>
+                        <td class="text-sm text-gray-700">${mgrName}</td>
+                        <td class="text-right">
+                            <div class="flex justify-end gap-2">
+                                <button onclick="approveVisit('${visit._id}')" class="bg-green-600 hover:bg-green-700 text-white text-xs font-bold py-2 px-3 rounded shadow-sm flex items-center gap-1 transition transform hover:scale-105" title="Accept">
+                                    <i data-lucide="check" class="w-3 h-3"></i> Accept
+                                </button>
+                                <button onclick="rejectVisit('${visit._id}')" class="bg-red-100 hover:bg-red-200 text-red-600 text-xs font-bold py-2 px-3 rounded shadow-sm flex items-center gap-1 transition" title="Reject">
+                                    <i data-lucide="x" class="w-3 h-3"></i> Reject
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+                tbody.innerHTML += row;
+            });
+            lucide.createIcons();
+        }
+
+        async function renderLeadsTable() {
+            const tbody = document.getElementById('leadsTableBody');
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center py-6 text-gray-400">Loading leads...</td></tr>';
+            
+            try {
+                // API Call: GET /api/admin/visits?status=approved
+                const res = await fetch('/api/admin/visits?status=approved', {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' },
+                });
+
+                if (res.ok) {
+                    const approvedVisits = await res.json();
+                    console.log('✅ Approved leads fetched from MongoDB:', approvedVisits);
+                    
+                    if(approvedVisits.length === 0) {
+                        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-12 text-gray-400">No general leads found.</td></tr>`;
+                        return;
+                    }
+
+                    tbody.innerHTML = '';
+                    approvedVisits.forEach(visit => {
+                        const date = new Date(visit.approvedAt).toLocaleDateString();
+                        
+                        tbody.innerHTML += `
+                            <tr class="hover:bg-gray-50 transition border-b border-gray-100">
+                                <td class="text-sm text-gray-600">${date}</td>
+                                <td class="font-medium text-slate-800">${visit.propertyInfo?.name || 'Unknown'}</td>
+                                <td class="text-sm text-gray-700">${visit.propertyInfo?.ownerName || 'Unknown'}</td>
+                                <td class="text-sm text-gray-600">${visit.propertyInfo?.contactPhone || '-'}</td>
+                                <td class="text-sm text-gray-600 max-w-xs truncate">${visit.propertyInfo?.address || '-'}</td>
+                                <td class="text-center"><span class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-medium">Lead</span></td>
+                            </tr>
+                        `;
+                    });
+                    return;
+                } else {
+                    console.warn('⚠️ API returned:', res.status);
+                }
+            } catch (err) {
+                console.warn('🌐 API fetch failed, using localStorage fallback:', err.message);
+            }
+
+            // Fallback: Use localStorage if API fails
+            const leads = JSON.parse(localStorage.getItem('roomhy_general_leads') || '[]');
+            
+            if(leads.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="text-center py-12 text-gray-400">No general leads found.</td></tr>`;
+                return;
+            }
+            
+            tbody.innerHTML = '';
+            leads.forEach(lead => {
+                const date = new Date(lead.approvedAt).toLocaleDateString();
+                
+                tbody.innerHTML += `
+                    <tr class="hover:bg-gray-50 transition border-b border-gray-100">
+                        <td class="text-sm text-gray-600">${date}</td>
+                        <td class="font-medium text-slate-800">${lead.propertyName}</td>
+                        <td class="text-sm text-gray-700">${lead.ownerName}</td>
+                        <td class="text-sm text-gray-600">${lead.phone}</td>
+                        <td class="text-sm text-gray-600 max-w-xs truncate">${lead.address}</td>
+                        <td class="text-center"><span class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-medium">Lead</span></td>
+                    </tr>
+                `;
+            });
+        }
+
+        // --- Action Logic ---
+        async function approveVisit(id) {
+            if(!confirm('Accept this property and generate Owner ID?')) return;
+
+            try {
+                // API Call: POST /api/admin/approve-visit/:visitId
+                const res = await fetch(`/api/admin/approve-visit/${id}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    console.log('✅ Visit approved via MongoDB:', data);
+                    showSuccessModal(data.loginId, data.tempPassword);
+                    return;
+                } else {
+                    console.warn('⚠️ API approval failed, status:', res.status);
+                }
+            } catch (err) {
+                console.warn('🌐 API approval failed, using localStorage fallback:', err.message);
+            }
+
+            // Fallback: Use localStorage if API fails
+            const allVisits = JSON.parse(localStorage.getItem('roomhy_visits') || '[]');
+            const index = allVisits.findIndex(v => v._id === id);
+            
+            if(index !== -1) {
+                const visit = allVisits[index];
+                
+                // 1. Update Status
+                allVisits[index].status = 'approved';
+
+                // 2. Generate Credentials
+                const locationCode = visit.propertyInfo.locationCode.toUpperCase();
+                const db = JSON.parse(localStorage.getItem('roomhy_owners_db') || '{}');
+                const existingIds = Object.keys(db).filter(k => k.startsWith('ROOMHY'));
+                let maxNum = 0;
+                existingIds.forEach(eid => {
+                    const numPart = parseInt(eid.replace('ROOMHY', ''));
+                    if (!isNaN(numPart) && numPart > maxNum) maxNum = numPart;
+                });
+                const nextNum = maxNum + 1;
+                const uniqueSuffix = Date.now().toString().slice(-4);
+                const mockId = `ROOMHY${String(nextNum).padStart(3, '0')}-${uniqueSuffix}`;
+                const tempPass = "temp" + Math.floor(1000 + Math.random() * 9000);
+
+                allVisits[index].generatedCredentials = { loginId: mockId, tempPassword: tempPass };
+                localStorage.setItem('roomhy_visits', JSON.stringify(allVisits));
+
+                // 3. Save to Owners DB
+                if (!db[mockId]) db[mockId] = {};
+                db[mockId].profile = {
+                    name: visit.propertyInfo.ownerName,
+                    phone: visit.propertyInfo.contactPhone,
+                    address: visit.propertyInfo.address,
+                    locationCode: locationCode,
+                    loginId: mockId
+                };
+                db[mockId].credentials = { password: tempPass, firstTime: true };
+                db[mockId].kyc = { status: 'pending' };
+                localStorage.setItem('roomhy_owners_db', JSON.stringify(db));
+
+                // 4. Save to General Leads DB
+                const leads = JSON.parse(localStorage.getItem('roomhy_general_leads') || '[]');
+                leads.push({
+                    propertyName: visit.propertyInfo.name,
+                    ownerName: visit.propertyInfo.ownerName,
+                    phone: visit.propertyInfo.contactPhone,
+                    address: visit.propertyInfo.address,
+                    approvedAt: new Date().toISOString(),
+                    ownerId: mockId
+                });
+                localStorage.setItem('roomhy_general_leads', JSON.stringify(leads));
+
+                showSuccessModal(mockId, tempPass);
             }
         }
         
+        async function rejectVisit(id) {
+             if(!confirm('Are you sure you want to reject this property request?')) return;
+             
+             try {
+                 // API Call: POST /api/admin/reject-visit/:visitId
+                 const res = await fetch(`/api/admin/reject-visit/${id}`, {
+                     method: 'POST',
+                     headers: { 'Content-Type': 'application/json' },
+                 });
+
+                 if (res.ok) {
+                     console.log('✅ Visit rejected via MongoDB');
+                     fetchPendingApprovals();
+                     return;
+                 } else {
+                     console.warn('⚠️ API rejection failed, status:', res.status);
+                 }
+             } catch (err) {
+                 console.warn('🌐 API rejection failed, using localStorage fallback:', err.message);
+             }
+
+             // Fallback: Use localStorage if API fails
+             const allVisits = JSON.parse(localStorage.getItem('roomhy_visits') || '[]');
+             const index = allVisits.findIndex(v => v._id === id);
+             if(index !== -1) {
+                 allVisits[index].status = 'rejected';
+                 localStorage.setItem('roomhy_visits', JSON.stringify(allVisits));
+                 fetchPendingApprovals();
+             }
+        }
+
+        function showSuccessModal(loginId, password) {
+             document.getElementById('modalOwnerId').innerText = loginId;
+             document.getElementById('modalPassword').innerText = password;
+             const modal = document.getElementById('successModal');
+             modal.classList.remove('hidden');
+             modal.classList.add('flex');
+        }
+
+        function closeModal() {
+            document.getElementById('successModal').classList.add('hidden');
+            document.getElementById('successModal').classList.remove('flex');
+            fetchPendingApprovals();
+        }
+        
+        function openGallery(photos) {
+            const grid = document.getElementById('galleryGrid');
+            grid.innerHTML = '';
+            photos.forEach(src => {
+                grid.innerHTML += `<img src="${src}" class="w-full h-48 object-cover rounded-lg border border-gray-600 shadow-lg">`;
+            });
+            document.getElementById('imageModal').classList.remove('hidden');
+            document.getElementById('imageModal').classList.add('flex');
+        }
+
+        function closeImageModal() {
+            document.getElementById('imageModal').classList.add('hidden');
+            document.getElementById('imageModal').classList.remove('flex');
+        }
+
+        function switchTab(tab) {
+            const tabs = document.querySelectorAll('.tab-btn');
+            tabs.forEach(t => t.classList.remove('active', 'text-purple-600'));
+            if(tab === 'approvals') {
+                document.getElementById('approvalsTab').classList.remove('hidden');
+                document.getElementById('leadsTab').classList.add('hidden');
+                tabs[0].classList.add('active');
+            } else {
+                document.getElementById('approvalsTab').classList.add('hidden');
+                document.getElementById('leadsTab').classList.remove('hidden');
+                tabs[1].classList.add('active');
+            }
+        }
+
+        document.getElementById('logoutBtn').addEventListener('click', (e) => {
+            e.preventDefault();
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.reload();
+        });
+        
+        // Mobile menu helpers
         document.getElementById('mobile-menu-open').addEventListener('click', () => {
+             // Basic mobile toggle logic for sidebar visibility
              const sidebar = document.querySelector('.sidebar');
              sidebar.classList.toggle('hidden');
              sidebar.classList.toggle('flex');
@@ -175,103 +572,12 @@
              sidebar.classList.toggle('w-full');
         });
 
-        document.getElementById('logoutBtn').addEventListener('click', (e) => {
-            e.preventDefault();
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-            window.location.reload();
-        });
-
-        // --- MONGODB API LOGIC ---
-
-        // ⚠️ CONFIGURATION: Backend URL
-        // Use empty string '' for relative URLs that work on both local and Render
-        const API_BASE_URL = ''; 
-
-        // 1. Fetch Visits from Backend API
-        async function fetchVisits() {
-            const list = document.getElementById('approvals-list');
-            list.innerHTML = '<div class="p-8 text-center text-gray-400">Loading...</div>';
-            
-            try {
-                // Use relative URL that works on both localhost and Render
-                const res = await fetch(`${API_BASE_URL}/api/admin/visits?status=submitted`); 
-                
-                if (!res.ok) throw new Error('API Error: ' + res.statusText);
-                
-                const visits = await res.json();
-                
-                list.innerHTML = '';
-                if (visits.length === 0) {
-                    list.innerHTML = '<div class="p-8 text-center text-gray-400">No pending visits found in Database.</div>';
-                    return;
-                }
-
-                visits.forEach(visit => {
-                    const info = visit.propertyInfo || {};
-                    const row = `
-                        <div class="p-4 flex flex-col md:flex-row justify-between items-center hover:bg-gray-50 gap-4 transition duration-150 ease-in-out">
-                            <div class="flex items-start gap-4">
-                                <div class="bg-blue-100 p-2 rounded-lg text-blue-600 mt-1">
-                                    <i data-lucide="home" class="w-5 h-5"></i>
-                                </div>
-                                <div>
-                                    <h3 class="font-bold text-lg text-slate-800">${info.name || 'Untitled'}</h3>
-                                    <p class="text-sm text-gray-500 flex items-center gap-2">
-                                        <i data-lucide="user" class="w-3 h-3"></i> ${info.ownerName} 
-                                        <span class="text-gray-300">|</span> 
-                                        <i data-lucide="phone" class="w-3 h-3"></i> ${info.contactPhone}
-                                    </p>
-                                    <span class="inline-block bg-blue-50 text-blue-700 text-xs px-2 py-0.5 rounded mt-2 border border-blue-100 font-mono">
-                                        Code: ${info.locationCode || 'NA'}
-                                    </span>
-                                </div>
-                            </div>
-                            <button onclick="approveVisit('${visit._id}')" class="bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-lg text-sm font-bold shadow-sm transition transform hover:scale-105 flex items-center gap-2">
-                                <i data-lucide="check-circle" class="w-4 h-4"></i> Approve & Generate
-                            </button>
-                        </div>
-                    `;
-                    list.innerHTML += row;
-                });
-                lucide.createIcons();
-
-            } catch (err) {
-                console.error(err);
-                list.innerHTML = `<div class="p-8 text-center text-red-500 bg-red-50 m-4 rounded-lg border border-red-100">
-                    <p class="font-bold">Failed to load data</p>
-                    <p class="text-sm">Is Backend running on port 5000?</p>
-                    <p class="text-xs mt-2 font-mono text-gray-500">${err.message}</p>
-                </div>`;
-            }
+        function toggleSubmenu(id, element) {
+            const submenu = document.getElementById(id);
+            submenu.classList.toggle('open');
         }
 
-        // 2. Approve Visit (Creates Owner & User in DB)
-        async function approveVisit(visitId) {
-            if(!confirm("Create Owner ID and Property in MongoDB?")) return;
-
-            try {
-                // FIX: Use full URL
-                const res = await fetch(`${API_BASE_URL}/api/admin/approve-visit/${visitId}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
-                });
-
-                const data = await res.json();
-
-                if (res.ok) {
-                    alert(`✅ APPROVED!\n\nOwner ID: ${data.ownerCredentials.loginId}\nPassword: ${data.ownerCredentials.tempPassword}\n\nSaved to MongoDB Atlas.`);
-                    fetchVisits(); // Refresh list
-                } else {
-                    alert(`❌ Error: ${data.message}`);
-                }
-            } catch (err) {
-                alert("Request Failed: " + err.message);
-            }
-        }
-
-        // Load on start
-        fetchVisits();
+        fetchPendingApprovals();
     </script>
 </body>
 </html>
