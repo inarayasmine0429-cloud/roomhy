@@ -18,4 +18,7 @@ router.get('/visits', async (req, res) => {
 // Route to approve visit
 router.post('/approve-visit/:id', adminController.approveVisit);
 
+// Route to reject visit
+router.post('/reject-visit/:id', adminController.rejectVisit);
+
 module.exports = router;

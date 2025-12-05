@@ -320,6 +320,35 @@
                 status: 'submitted'
             };
 
+            // Try API first: POST /api/visits/submit
+            let apiSuccess = false;
+            try {
+                const res = await fetch('/api/visits/submit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: newVisit.propertyInfo.name,
+                        ownerName: newVisit.propertyInfo.ownerName,
+                        address: newVisit.propertyInfo.address,
+                        locationCode: submittedLocCode,
+                        contactPhone: newVisit.propertyInfo.contactPhone,
+                        notes: 'Visit submission',
+                        areaManager: user && user._id ? user._id : null
+                    })
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    console.log('✅ Visit submitted to MongoDB:', data);
+                    apiSuccess = true;
+                } else {
+                    console.warn('⚠️ API submission failed, status:', res.status);
+                }
+            } catch (err) {
+                console.warn('🌐 API submission failed, using localStorage fallback:', err.message);
+            }
+
+            // Fallback: Always store to localStorage for offline support
             const visits = JSON.parse(localStorage.getItem('roomhy_visits') || '[]');
             visits.push(newVisit);
             localStorage.setItem('roomhy_visits', JSON.stringify(visits));

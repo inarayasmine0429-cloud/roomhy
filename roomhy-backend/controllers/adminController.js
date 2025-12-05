@@ -77,3 +77,27 @@ exports.approveVisit = async (req, res) => {
         return res.status(500).json({ success: false, message: err.message });
     }
 };
+
+exports.rejectVisit = async (req, res) => {
+    try {
+        const visitId = req.params.id;
+        const visit = await VisitReport.findById(visitId);
+        
+        if (!visit) return res.status(404).json({ success: false, message: 'Visit report not found' });
+        if (visit.status === 'rejected') return res.status(400).json({ success: false, message: 'Already rejected' });
+
+        // Update Visit Report status to rejected
+        visit.status = 'rejected';
+        await visit.save();
+
+        return res.status(200).json({ 
+            success: true, 
+            message: 'Visit rejected successfully',
+            visit
+        });
+
+    } catch (err) {
+        console.error("Rejection Error:", err);
+        return res.status(500).json({ success: false, message: err.message });
+    }
+};
