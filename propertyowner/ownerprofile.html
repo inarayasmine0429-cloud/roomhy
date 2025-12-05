@@ -162,6 +162,8 @@
                 address,
                 updatedAt: new Date().toISOString()
             };
+            // Mark profile as completed so onboarding doesn't force profile again
+            db[loginId].profileFilled = true;
             
             localStorage.setItem('roomhy_owners_db', JSON.stringify(db));
             

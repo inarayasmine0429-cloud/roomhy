@@ -173,12 +173,19 @@
                 // CHECK: Is KYC Done?
                 const kycStatus = db[loginId].kyc ? db[loginId].kyc.status : 'pending';
 
-                if (kycStatus === 'submitted' || kycStatus === 'verified') {
-                    // 2nd Time Login -> Direct Dashboard
-                    window.location.href = 'admin.html';
-                } else {
-                    // KYC Incomplete -> Go to Profile -> KYC
+                // Consider onboarding complete if profileFilled flag is set or required profile fields exist
+                const hasProfileFlag = db[loginId].profileFilled === true;
+                const hasProfileFields = db[loginId].profile && db[loginId].profile.email && db[loginId].profile.address;
+
+                if (!hasProfileFlag && !hasProfileFields) {
+                    // No profile yet -> go to profile setup
                     window.location.href = 'ownerprofile.html';
+                } else if (!kycStatus || kycStatus === 'pending') {
+                    // Profile exists but KYC pending -> go to KYC
+                    window.location.href = 'ownerkyc.html';
+                } else {
+                    // Onboarded -> go to dashboard
+                    window.location.href = 'admin.html';
                 }
                 return;
             }

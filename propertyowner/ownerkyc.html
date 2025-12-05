@@ -191,7 +191,16 @@
                 // Success Animation
                 alert("🎉 Verification Submitted! Welcome to your Dashboard.");
 
-                // Redirect to Dashboard (Flow Complete)
+                // Mark profile as completed and redirect to Dashboard (Flow Complete)
+                try {
+                    // Ensure profileFilled so future logins go straight to dashboard
+                    if (user.loginId && db[user.loginId]) {
+                        db[user.loginId].profileFilled = true;
+                        // keep kyc status set (already set above)
+                        localStorage.setItem('roomhy_owners_db', JSON.stringify(db));
+                    }
+                } catch (e) { console.warn('Failed to mark profileFilled', e); }
+
                 try {
                     window.location.href = 'admin.html';
                 } catch (e) {
