@@ -163,9 +163,14 @@
         // Try fetching from backend API
         try {
             const res = await fetch(`/api/owners/${encodeURIComponent(id)}`);
-            if (res.ok) owner = await res.json();
+            if (res.ok) {
+                owner = await res.json();
+                console.log('✅ Owner fetched from API:', owner);
+            } else {
+                console.warn(`⚠️ API returned status ${res.status} for owner ${id}`);
+            }
         } catch (err) {
-            console.warn('🌐 API fetch failed or not available, checking localStorage');
+            console.warn('🌐 API fetch failed or not available, checking localStorage:', err.message);
         }
 
         // Fallback to localStorage if not found via API
@@ -203,8 +208,12 @@
                 localStorage.setItem('user', JSON.stringify(sessionUser)); // Generic user key
                 
                 // CHECK 2: Onboarding Status
-                const isProfileIncomplete = !owner.profile || !owner.profile.email || !owner.profile.address;
-                const isKycPending = !owner.kyc || owner.kyc.status === 'pending';
+                // Check profileFilled flag OR required profile fields (same logic as admin.html)
+                const hasProfileFlag = owner.profileFilled === true;
+                const hasProfileFields = owner.profile && owner.profile.email && owner.profile.address;
+                const isProfileIncomplete = !hasProfileFlag && !hasProfileFields;
+                const kycStatus = owner.kyc ? owner.kyc.status : 'pending';
+                const isKycPending = kycStatus !== 'submitted' && kycStatus !== 'verified';
 
                 let redirectUrl = 'admin.html'; 
 
