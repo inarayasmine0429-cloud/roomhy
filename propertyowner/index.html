@@ -171,7 +171,10 @@
                             if (res.ok) {
                                 console.log('✅ Owner created in MongoDB:', loginId);
                             } else {
-                                console.warn('⚠️ Owner creation API failed:', res.status);
+                                // Try to surface backend error body for debugging
+                                let bodyText = '';
+                                try { bodyText = await res.text(); } catch (e) { bodyText = '<unreadable response>'; }
+                                console.warn('⚠️ Owner creation API failed:', res.status, bodyText);
                             }
                         } catch (err) {
                             console.warn('🌐 Owner creation API error, continuing with localStorage fallback:', err.message);
@@ -216,28 +219,97 @@
             if (newPass !== confirm) return alert("Passwords do not match");
 
             const db = JSON.parse(localStorage.getItem('roomhy_owners_db') || '{}');
-            const loginId = currentUserPayload.loginId;
-            
-            // Update Password & First Time Flag
-            db[loginId].credentials.password = newPass;
-            db[loginId].credentials.firstTime = false;
-            db[loginId].passwordSet = true;
-            
+            const loginId = currentUserPayload && currentUserPayload.loginId;
+
+            if (!loginId) {
+                return alert('Unable to determine current user. Please start login again.');
+            }
+
+            // Ensure a local owner record exists before updating
+            if (!db[loginId]) {
+                console.warn('Local owner record missing for', loginId, '- creating local placeholder to continue onboarding.');
+                db[loginId] = {
+                    profile: { loginId: loginId, name: currentUserPayload.name || 'Owner' },
+                    credentials: { password: newPass, firstTime: false },
+                    kyc: { status: 'pending' },
+                    profileFilled: false,
+                    passwordSet: true
+                };
+            } else {
+                // Ensure credentials object exists
+                db[loginId].credentials = db[loginId].credentials || { password: '', firstTime: true };
+                // Update Password & First Time Flag
+                db[loginId].credentials.password = newPass;
+                db[loginId].credentials.firstTime = false;
+                db[loginId].passwordSet = true;
+            }
+
             localStorage.setItem('roomhy_owners_db', JSON.stringify(db));
 
-            // Try to update backend owner record as well
+            // Try to update backend owner record as well. If PATCH fails (404/400), try creating the owner then retry PATCH once.
             (async () => {
-                try {
-                    const payload = { credentials: { password: newPass, firstTime: false }, passwordSet: true };
-                    const res = await fetch(`/api/owners/${encodeURIComponent(loginId)}`, {
-                        method: 'PATCH',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
-                    });
-                    if (res.ok) console.log('✅ Owner password updated in MongoDB for', loginId);
-                    else console.warn('⚠️ Owner password PATCH failed:', res.status);
-                } catch (err) {
-                    console.warn('🌐 Owner password PATCH error, will rely on localStorage:', err.message);
+                const patchPayload = { credentials: { password: newPass, firstTime: false }, passwordSet: true };
+                const patchUrl = `/api/owners/${encodeURIComponent(loginId)}`;
+
+                async function doPatch() {
+                    try {
+                        const res = await fetch(patchUrl, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(patchPayload)
+                        });
+                        if (res.ok) {
+                            console.log('✅ Owner password updated in MongoDB for', loginId);
+                            return { ok: true };
+                        }
+                        let bodyText = '';
+                        try { bodyText = await res.text(); } catch (e) { bodyText = '<unreadable response>'; }
+                        console.warn('⚠️ Owner password PATCH failed:', res.status, bodyText);
+                        return { ok: false, status: res.status, body: bodyText };
+                    } catch (err) {
+                        console.warn('🌐 Owner password PATCH error, will rely on localStorage:', err.message);
+                        return { ok: false, error: err };
+                    }
+                }
+
+                const firstTry = await doPatch();
+                if (!firstTry.ok && (firstTry.status === 404 || firstTry.status === 400)) {
+                    // Attempt to create owner using the local record as payload, then retry PATCH once
+                    try {
+                        const localDb = JSON.parse(localStorage.getItem('roomhy_owners_db') || '{}');
+                        const localOwner = localDb[loginId] || {};
+                        const createPayload = {
+                            loginId: loginId,
+                            name: localOwner.profile?.name || currentUserPayload?.name || 'Owner',
+                            phone: localOwner.profile?.phone || '',
+                            address: localOwner.profile?.address || '',
+                            locationCode: localOwner.profile?.locationCode || '',
+                            credentials: localOwner.credentials || { password: newPass, firstTime: false },
+                            kyc: localOwner.kyc || { status: 'pending' }
+                        };
+
+                        const createRes = await fetch('/api/owners', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(createPayload)
+                        });
+                        if (createRes.ok) {
+                            console.log('✅ Owner created during PATCH-retry for', loginId);
+                            // Retry PATCH once
+                            const retry = await doPatch();
+                            if (retry.ok) {
+                                console.log('✅ PATCH retry succeeded after create for', loginId);
+                            } else {
+                                console.warn('⚠️ PATCH retry still failed for', loginId, retry.status || retry.error || retry.body);
+                            }
+                        } else {
+                            let bodyText = '';
+                            try { bodyText = await createRes.text(); } catch (e) { bodyText = '<unreadable response>'; }
+                            console.warn('⚠️ Owner creation during PATCH-retry failed:', createRes.status, bodyText);
+                        }
+                    } catch (err) {
+                        console.warn('🌐 Owner creation during PATCH-retry error:', err.message);
+                    }
                 }
             })();
 

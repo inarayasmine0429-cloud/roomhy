@@ -62,35 +62,31 @@ router.get('/:loginId', async (req, res) => {
 router.patch('/:loginId', async (req, res) => {
     try {
         console.log('✏️ Owner PATCH request for:', req.params.loginId, 'payload:', JSON.stringify(req.body));
-        console.log('📌 Database: checking if owner exists before update...');
-        
-        // First check if owner exists
-        const existingOwner = await Owner.findOne({ loginId: req.params.loginId });
-        if (!existingOwner) {
-            console.log('⚠️ PATCH: Owner not found for update:', req.params.loginId);
-            return res.status(404).json({ error: 'Owner not found for update', loginId: req.params.loginId });
-        }
-        console.log('✅ PATCH: Found existing owner, current state:', JSON.stringify(existingOwner, null, 2));
-        
-        // If password is being updated, ensure credentials.firstTime is set to false and passwordSet is set to true
+        console.log('📌 Attempting upsert (update or create) in database...');
+
+        // Prepare update payload and ensure loginId is set for inserts
         let updatePayload = { ...req.body };
+        updatePayload.loginId = req.params.loginId;
+
+        // If password is being updated, ensure credentials.firstTime is set to false and passwordSet is set to true
         if (updatePayload.credentials && updatePayload.credentials.password) {
-            // Ensure credentials object has firstTime set to false
             updatePayload.credentials.firstTime = false;
             updatePayload.passwordSet = true;
         }
+
+        // Use findOneAndUpdate with upsert so missing owners are created automatically
         const owner = await Owner.findOneAndUpdate(
             { loginId: req.params.loginId },
-            { $set: updatePayload },
-            { new: true }
+            { $set: updatePayload, $setOnInsert: { createdAt: new Date() } },
+            { new: true, upsert: true, setDefaultsOnInsert: true }
         );
         
         if (!owner) {
             console.error('❌ PATCH: findOneAndUpdate returned null (should not happen)');
             return res.status(500).json({ error: 'Update failed to return document' });
         }
-        
-        console.log('✅ PATCH: Owner updated successfully. New state:', JSON.stringify(owner, null, 2));
+
+        console.log('✅ PATCH/UPSERT: Owner updated or created successfully. New state:', JSON.stringify(owner, null, 2));
         res.json(owner);
     } catch (err) {
         console.error('❌ Owner PATCH error:', err.message, err.code);
