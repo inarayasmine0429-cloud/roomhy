@@ -91,7 +91,7 @@
             try {
                 window.location.href = url;
             } catch (e) {
-                console.warn("Environment prevented auto-redirect. Showing fallback UI.", e);
+                console.warn("Automatic redirect failed, showing manual link.", e && e.message);
                 document.body.innerHTML = `
                     <div class="flex flex-col items-center justify-center h-screen bg-gray-100 text-center p-4">
                         <div class="bg-white p-8 rounded-xl shadow-lg max-w-sm w-full">
@@ -99,9 +99,9 @@
                                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-600"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
                             </div>
                             <h2 class="text-xl font-bold text-gray-800 mb-2">Navigation Required</h2>
-                            <p class="text-gray-600 mb-6 text-sm">Please click the button below to continue.</p>
+                            <p class="text-gray-600 mb-6 text-sm">We need to move you to the next page.</p>
                             <a href="${url}" class="block w-full bg-blue-600 text-white px-4 py-3 rounded-lg font-medium hover:bg-blue-700 shadow transition">
-                                Continue
+                                Continue to Next Step
                             </a>
                         </div>
                     </div>
@@ -110,11 +110,11 @@
         }
 
         const user = JSON.parse(localStorage.getItem('user') || 'null');
-        
         if (!user) {
             safeRedirect('ownerlogin.html');
         }
 
+        // Aadhar Formatting
         const aadharInput = document.getElementById('aadhar-number');
         if (aadharInput) {
             aadharInput.addEventListener('input', function (e) {
@@ -128,14 +128,16 @@
             });
         }
 
+        // File Upload
         const idProofInput = document.getElementById('id-proof');
         if (idProofInput) {
             idProofInput.addEventListener('change', function(e) {
                 const file = e.target.files[0];
                 if(file) {
+                    // Check size (limit to 500KB for localStorage safety)
                     if (file.size > 500000) {
                         alert("File is too large! Please upload an image smaller than 500KB for this demo.");
-                        this.value = ""; 
+                        this.value = ""; // Reset
                         return;
                     }
 
@@ -150,57 +152,79 @@
             });
         }
 
-        function submitKYC() {
+        // Submit KYC: try backend PATCH then fallback to localStorage
+        async function submitKYC() {
             const aadhar = document.getElementById('aadhar-number').value.replace(/\s/g, '');
-            if(aadhar.length !== 12) { alert("Invalid Aadhar Number"); return; }
-            if(!base64Image) { alert("Please upload document"); return; }
+            if (aadhar.length !== 12) { alert('Invalid Aadhar Number'); return; }
+            if (!base64Image) { alert('Please upload document'); return; }
+
+            const kycPayload = {
+                kyc: {
+                    status: 'submitted',
+                    aadharNumber: aadhar,
+                    documentImage: base64Image,
+                    submittedAt: new Date().toISOString()
+                },
+                profileFilled: true
+            };
 
             try {
+                if (user && user.loginId) {
+                    try {
+                        const res = await fetch(`/api/owners/${encodeURIComponent(user.loginId)}`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(kycPayload)
+                        });
+
+                        if (res.ok) {
+                            const updatedOwner = await res.json();
+                            const db = JSON.parse(localStorage.getItem('roomhy_owners_db') || '{}');
+                            db[user.loginId] = db[user.loginId] || {};
+                            db[user.loginId].kyc = updatedOwner.kyc || kycPayload.kyc;
+                            db[user.loginId].profile = db[user.loginId].profile || { name: user.name || 'Owner', loginId: user.loginId };
+                            db[user.loginId].profileFilled = true;
+                            localStorage.setItem('roomhy_owners_db', JSON.stringify(db));
+
+                            alert('🎉 KYC Submitted! Redirecting to Dashboard...');
+                            safeRedirect('admin.html');
+                            return;
+                        } else {
+                            console.warn('KYC PATCH failed with status', res.status);
+                        }
+                    } catch (err) {
+                        console.warn('KYC PATCH request failed, will fallback to localStorage', err);
+                    }
+                }
+
+                // Fallback to localStorage
                 const db = JSON.parse(localStorage.getItem('roomhy_owners_db') || '{}');
-                
-                // SELF HEALING: Create entry if missing
                 if (user && !db[user.loginId]) {
-                    console.log("Self-healing: Creating missing owner record for " + user.loginId);
                     db[user.loginId] = {
                         profile: { name: user.name || 'Owner', loginId: user.loginId },
-                        credentials: { firstTime: false }, 
+                        credentials: { firstTime: false },
                         kyc: { status: 'pending' },
                         profileFilled: false
                     };
                 }
 
-                if (user && db[user.loginId]) {
-                    // Update Data
-                    db[user.loginId].kyc = { 
-                        status: 'submitted', // Mark as submitted
-                        aadharNumber: aadhar,
-                        documentImage: base64Image,
-                        submittedAt: new Date().toISOString()
-                    };
-                    
-                    // IMPORTANT: Mark profileFilled as true to bypass profile check
+                if (user) {
+                    db[user.loginId].kyc = kycPayload.kyc;
                     db[user.loginId].profileFilled = true;
-                    
-                    // Save to LocalStorage
                     localStorage.setItem('roomhy_owners_db', JSON.stringify(db));
-                    
-                    console.log("KYC Saved. Redirecting to Admin Dashboard...");
-                    
-                    // Force redirect after a short delay to ensure storage write
-                    setTimeout(() => {
-                        safeRedirect('admin.html');
-                    }, 500);
+
+                    alert('🎉 KYC Submitted (offline). Redirecting to Dashboard...');
+                    safeRedirect('admin.html');
                 } else {
-                    alert("Session Error: User not found. Please login again.");
                     safeRedirect('ownerlogin.html');
                 }
 
             } catch (e) {
-                console.error(e);
+                console.error('submitKYC error', e);
                 if (e.name === 'QuotaExceededError') {
-                    alert("Storage Error: The image is too large. Please try a smaller image.");
+                    alert('Storage Error: The image is too large. Please try a smaller image.');
                 } else {
-                    alert("Unable to save KYC. Please try again.");
+                    alert('Unable to save KYC. Please try again.');
                 }
             }
         }
