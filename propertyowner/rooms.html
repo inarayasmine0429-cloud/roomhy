@@ -319,15 +319,31 @@
             window.location.href = 'ownerlogin.html';
         });
 
-        // 4. Load Rooms Logic
-        function loadRooms() {
-            const allRooms = JSON.parse(localStorage.getItem('roomhy_rooms') || '[]');
-            const myRooms = allRooms.filter(r => r.ownerId === ownerId);
-            
+        // 4. Load Rooms Logic (prefer backend)
+        async function loadRooms() {
+            let myRooms = [];
+            try {
+                const res = await fetch(`/api/owners/${encodeURIComponent(ownerId)}/rooms`);
+                if (res.ok) {
+                    const payload = await res.json();
+                    myRooms = payload.rooms || [];
+                } else {
+                    console.warn('rooms API returned', res.status);
+                }
+            } catch (err) {
+                console.warn('Failed to load rooms from backend, falling back to localStorage', err);
+            }
+
+            // Fallback to localStorage
+            if (!myRooms || myRooms.length === 0) {
+                const allRooms = JSON.parse(localStorage.getItem('roomhy_rooms') || '[]');
+                myRooms = allRooms.filter(r => r.ownerId === ownerId);
+            }
+
             const grid = document.getElementById('rooms-grid');
             grid.innerHTML = '';
 
-            if(myRooms.length === 0) {
+            if (myRooms.length === 0) {
                 grid.innerHTML = `
                     <div class="col-span-1 md:col-span-2 lg:col-span-3 flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-gray-200 border-dashed">
                         <div class="bg-purple-50 p-4 rounded-full mb-3">

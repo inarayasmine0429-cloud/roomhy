@@ -249,23 +249,39 @@
 
         // --- Load Data ---
         async function loadProperties() {
-            // Read from visits (source of approved properties)
-            const visits = JSON.parse(localStorage.getItem('roomhy_visits') || '[]');
-            const approvedProps = visits
-                .filter(v => v.status === 'approved')
-                .map(v => ({
-                    id: v._id,
-                    title: v.propertyInfo.name,
-                    locationCode: v.propertyInfo.locationCode,
-                    address: v.propertyInfo.address || '-', 
-                    ownerName: v.propertyInfo.ownerName || 'Unknown',
-                    ownerPhone: v.propertyInfo.contactPhone,
-                    // The Owner Login ID was generated during approval
-                    ownerLoginId: v.generatedCredentials ? v.generatedCredentials.loginId : null,
-                    photos: v.photos || [],
-                    imageBase64: v.imageBase64,
-                    status: 'active'
-                }));
+            // Try backend first: fetch approved visits (which represent approved properties)
+            let visits = [];
+            try {
+                const res = await fetch('/api/admin/visits?status=approved');
+                if (res.ok) {
+                    // API returns an array of visits
+                    visits = await res.json();
+                } else {
+                    console.warn('Backend visits fetch returned', res.status);
+                }
+            } catch (err) {
+                console.warn('Failed to fetch approved visits from backend, falling back to localStorage', err);
+            }
+
+            // If backend returned nothing, fallback to localStorage
+            if (!visits || visits.length === 0) {
+                const localVisits = JSON.parse(localStorage.getItem('roomhy_visits') || '[]');
+                visits = localVisits.filter(v => v.status === 'approved');
+            }
+
+            const approvedProps = visits.map(v => ({
+                id: v._id,
+                title: v.propertyInfo ? v.propertyInfo.name : (v.title || 'Property'),
+                locationCode: v.propertyInfo ? v.propertyInfo.locationCode : (v.locationCode || 'NA'),
+                address: v.propertyInfo ? (v.propertyInfo.address || '-') : (v.address || '-'),
+                ownerName: v.propertyInfo ? (v.propertyInfo.ownerName || 'Unknown') : (v.ownerName || 'Unknown'),
+                ownerPhone: v.propertyInfo ? v.propertyInfo.contactPhone : v.ownerPhone,
+                ownerLoginId: v.generatedCredentials ? v.generatedCredentials.loginId : (v.ownerLoginId || null),
+                photos: v.photos || [],
+                imageBase64: v.imageBase64,
+                status: 'active'
+            }));
+
             renderProperties(approvedProps);
         }
 
@@ -355,10 +371,25 @@
             document.getElementById('modal-owner-name').innerText = `Owner: ${ownerId}`;
             document.getElementById('modal-location').innerText = location;
             
-            // Fetch rooms for this owner from roomhy_rooms (populated by Owner Panel)
-            const allRooms = JSON.parse(localStorage.getItem('roomhy_rooms') || '[]');
-            // We assume rooms are linked by Owner ID for this demo
-            const propRooms = allRooms.filter(r => r.ownerId === ownerId);
+            // Try backend first: GET /api/owners/:ownerId/rooms
+            let propRooms = [];
+            try {
+                const roomsRes = await fetch(`/api/owners/${encodeURIComponent(ownerId)}/rooms`);
+                if (roomsRes.ok) {
+                    const payload = await roomsRes.json();
+                    propRooms = payload.rooms || [];
+                } else {
+                    console.warn('Rooms fetch returned', roomsRes.status);
+                }
+            } catch (err) {
+                console.warn('Rooms fetch failed, falling back to localStorage', err);
+            }
+
+            // Fallback to localStorage if no rooms found from backend
+            if (!propRooms || propRooms.length === 0) {
+                const allRooms = JSON.parse(localStorage.getItem('roomhy_rooms') || '[]');
+                propRooms = allRooms.filter(r => r.ownerId === ownerId);
+            }
             
             const container = document.getElementById('rooms-container');
             container.innerHTML = '';

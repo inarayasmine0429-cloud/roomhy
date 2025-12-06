@@ -189,6 +189,45 @@
                             alert('🎉 KYC Submitted! Redirecting to Dashboard...');
                             safeRedirect('admin.html');
                             return;
+                        } else if (res.status === 404) {
+                            console.warn('KYC PATCH returned 404 - owner not found. Attempting to create owner then retry PATCH.');
+                            // Try to create the owner and then retry the PATCH once
+                            try {
+                                const createPayload = { loginId: user.loginId, name: user.name || 'Owner' };
+                                const createRes = await fetch('/api/owners', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify(createPayload)
+                                });
+                                if (createRes.ok || createRes.status === 201) {
+                                    console.info('Owner created successfully, retrying PATCH...');
+                                    // Retry PATCH once
+                                    const retryRes = await fetch(`/api/owners/${encodeURIComponent(user.loginId)}`, {
+                                        method: 'PATCH',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify(kycPayload)
+                                    });
+                                    if (retryRes.ok) {
+                                        const updatedOwner = await retryRes.json();
+                                        const db = JSON.parse(localStorage.getItem('roomhy_owners_db') || '{}');
+                                        db[user.loginId] = db[user.loginId] || {};
+                                        db[user.loginId].kyc = updatedOwner.kyc || kycPayload.kyc;
+                                        db[user.loginId].profile = db[user.loginId].profile || { name: user.name || 'Owner', loginId: user.loginId };
+                                        db[user.loginId].profileFilled = true;
+                                        localStorage.setItem('roomhy_owners_db', JSON.stringify(db));
+
+                                        alert('🎉 KYC Submitted! Redirecting to Dashboard...');
+                                        safeRedirect('admin.html');
+                                        return;
+                                    } else {
+                                        console.warn('Retry PATCH after create failed with status', retryRes.status);
+                                    }
+                                } else {
+                                    console.warn('Owner create returned', createRes.status);
+                                }
+                            } catch (createErr) {
+                                console.warn('Owner create attempt failed', createErr);
+                            }
                         } else {
                             console.warn('KYC PATCH failed with status', res.status);
                         }

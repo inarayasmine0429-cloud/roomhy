@@ -23,6 +23,17 @@ router.post('/', async (req, res) => {
     }
 });
 
+// List all owners (for admin interfaces)
+router.get('/', async (req, res) => {
+    try {
+        const owners = await Owner.find({}).lean();
+        res.json(owners);
+    } catch (err) {
+        console.error('❌ Owner LIST error:', err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // Get owner by loginId
 router.get('/:loginId', async (req, res) => {
     try {
@@ -87,8 +98,6 @@ router.patch('/:loginId', async (req, res) => {
     }
 });
 
-module.exports = router;
-
 // Get rooms for owner by loginId
 router.get('/:loginId/rooms', async (req, res) => {
     try {
@@ -108,3 +117,5 @@ router.get('/:loginId/rooms', async (req, res) => {
         return res.status(500).json({ error: err.message });
     }
 });
+
+module.exports = router;
