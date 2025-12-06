@@ -113,28 +113,67 @@
             }
         });
 
-        function submitKYC() {
+        async function submitKYC() {
             const aadhar = document.getElementById('aadhar-number').value.replace(/\s/g, '');
             if(aadhar.length !== 12) { alert("Invalid Aadhar Number"); return; }
             if(!base64Image) { alert("Please upload document"); return; }
 
+            const loginId = user.loginId;
+
+            // Attempt API-first: PATCH /api/owners/:loginId
+            try {
+                const payload = {
+                    kyc: {
+                        status: 'submitted',
+                        aadharNumber: aadhar,
+                        documentImage: base64Image,
+                        submittedAt: new Date().toISOString()
+                    },
+                    profileFilled: true
+                };
+
+                const res = await fetch(`/api/owners/${encodeURIComponent(loginId)}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (res.ok) {
+                    const updated = await res.json();
+                    console.log('✅ KYC saved to MongoDB for', loginId, updated);
+
+                    // Update local cache if present
+                    const db = JSON.parse(localStorage.getItem('roomhy_owners_db') || '{}');
+                    if (!db[loginId]) db[loginId] = {};
+                    db[loginId].kyc = payload.kyc;
+                    db[loginId].profileFilled = true;
+                    localStorage.setItem('roomhy_owners_db', JSON.stringify(db));
+
+                    alert("🎉 KYC Submitted! Welcome to RoomHy Dashboard.");
+                    window.location.href = 'admin.html';
+                    return;
+                } else {
+                    console.warn('⚠️ KYC API returned', res.status);
+                }
+            } catch (err) {
+                console.warn('🌐 KYC API failed, falling back to localStorage:', err.message);
+            }
+
+            // Fallback: localStorage for offline/demo
             const db = JSON.parse(localStorage.getItem('roomhy_owners_db') || '{}');
-            if(db[user.loginId]) {
-                db[user.loginId].kyc = { 
-                    status: 'submitted', 
+            if(db[loginId]) {
+                db[loginId].kyc = {
+                    status: 'submitted',
                     aadharNumber: aadhar,
                     documentImage: base64Image,
                     submittedAt: new Date().toISOString()
                 };
-                
-                // Also update profileFilled just in case
-                db[user.loginId].profileFilled = true;
-                
+                db[loginId].profileFilled = true;
                 localStorage.setItem('roomhy_owners_db', JSON.stringify(db));
-                alert("🎉 KYC Submitted! Welcome to RoomHy Dashboard.");
-
-                // FLOW: 3. KYC (Done) -> 4. Dashboard
+                alert("🎉 KYC Submitted (local fallback)! Welcome to RoomHy Dashboard.");
                 window.location.href = 'admin.html';
+            } else {
+                alert('Unable to save KYC. Please try again or contact support.');
             }
         }
     </script>
