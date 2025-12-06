@@ -45,74 +45,43 @@ router.get('/:loginId', async (req, res) => {
     }
 });
 
-// Update owner profile by loginId
-router.put('/:loginId/profile', async (req, res) => {
+// Update owner by loginId (PATCH for password updates)
+router.patch('/:loginId', async (req, res) => {
     try {
-        console.log('📝 Owner PUT profile request for:', req.params.loginId, 'payload:', JSON.stringify(req.body));
+        console.log('✏️ Owner PATCH request for:', req.params.loginId, 'payload:', JSON.stringify(req.body));
+        console.log('📌 Database: checking if owner exists before update...');
         
-        const updatePayload = {
-            profile: {
-                name: req.body.name,
-                email: req.body.email,
-                phone: req.body.phone,
-                address: req.body.address,
-                updatedAt: new Date()
-            },
-            profileFilled: true,
-            updatedAt: new Date()
-        };
-
+        // First check if owner exists
+        const existingOwner = await Owner.findOne({ loginId: req.params.loginId });
+        if (!existingOwner) {
+            console.log('⚠️ PATCH: Owner not found for update:', req.params.loginId);
+            return res.status(404).json({ error: 'Owner not found for update', loginId: req.params.loginId });
+        }
+        console.log('✅ PATCH: Found existing owner, current state:', JSON.stringify(existingOwner, null, 2));
+        
+        // If password is being updated, ensure credentials.firstTime is set to false and passwordSet is set to true
+        let updatePayload = { ...req.body };
+        if (updatePayload.credentials && updatePayload.credentials.password) {
+            // Ensure credentials object has firstTime set to false
+            updatePayload.credentials.firstTime = false;
+            updatePayload.passwordSet = true;
+        }
         const owner = await Owner.findOneAndUpdate(
             { loginId: req.params.loginId },
             { $set: updatePayload },
             { new: true }
         );
-
-        if (!owner) {
-            console.log('⚠️ Owner not found for profile update:', req.params.loginId);
-            return res.status(404).json({ error: 'Owner not found' });
-        }
-
-        console.log('✅ Owner profile updated:', owner.loginId);
-        res.json(owner);
-    } catch (err) {
-        console.error('❌ Owner profile update error:', err.message);
-        res.status(500).json({ error: err.message });
-    }
-});
-
-// Update owner KYC by loginId
-router.put('/:loginId/kyc', async (req, res) => {
-    try {
-        console.log('📝 Owner PUT KYC request for:', req.params.loginId);
         
-        const updatePayload = {
-            kyc: {
-                status: 'submitted',
-                aadharNumber: req.body.aadharNumber,
-                documentImage: req.body.documentImage,
-                submittedAt: new Date()
-            },
-            profileFilled: true, // Ensure profile is marked as filled
-            updatedAt: new Date()
-        };
-
-        const owner = await Owner.findOneAndUpdate(
-            { loginId: req.params.loginId },
-            { $set: updatePayload },
-            { new: true }
-        );
-
         if (!owner) {
-            console.log('⚠️ Owner not found for KYC update:', req.params.loginId);
-            return res.status(404).json({ error: 'Owner not found' });
+            console.error('❌ PATCH: findOneAndUpdate returned null (should not happen)');
+            return res.status(500).json({ error: 'Update failed to return document' });
         }
-
-        console.log('✅ Owner KYC submitted:', owner.loginId);
+        
+        console.log('✅ PATCH: Owner updated successfully. New state:', JSON.stringify(owner, null, 2));
         res.json(owner);
     } catch (err) {
-        console.error('❌ Owner KYC update error:', err.message);
-        res.status(500).json({ error: err.message });
+        console.error('❌ Owner PATCH error:', err.message, err.code);
+        res.status(500).json({ error: err.message, errorCode: err.code });
     }
 });
 

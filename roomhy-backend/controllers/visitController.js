@@ -66,3 +66,67 @@ exports.getPendingVisits = async (req, res) => {
         res.status(500).json({ success: false, message: 'Server error' });
     }
 };
+
+// --- Public / Admin actions (for demo UI without JWT) ---
+exports.approveVisitPublic = async (req, res) => {
+    try {
+        const id = req.params.id;
+        const visit = await VisitReport.findById(id);
+        if (!visit) return res.status(404).json({ success: false, message: 'Visit not found' });
+
+        // mark approved
+        visit.status = 'approved';
+
+        // generate credentials and create Owner record
+        const Owner = require('../models/Owner');
+
+        // create a unique loginId
+        const count = await Owner.countDocuments();
+        const nextNum = count + 1;
+        const uniqueSuffix = Date.now().toString().slice(-4);
+        const mockId = `ROOMHY${String(nextNum).padStart(3, '0')}-${uniqueSuffix}`;
+        const tempPass = 'temp' + Math.floor(1000 + Math.random() * 9000);
+
+        visit.generatedCredentials = { loginId: mockId, tempPassword: tempPass };
+
+        await visit.save();
+
+        // create owner
+        const ownerData = {
+            loginId: mockId,
+            name: visit.propertyInfo.ownerName || visit.propertyInfo.name || 'Property Owner',
+            phone: visit.propertyInfo.contactPhone || '',
+            address: visit.propertyInfo.address || '',
+            locationCode: visit.propertyInfo.locationCode || visit.propertyInfo.locationCode,
+            credentials: { password: tempPass, firstTime: true },
+            kyc: { status: 'pending' }
+        };
+
+        let owner = null;
+        try {
+            owner = await Owner.create(ownerData);
+        } catch (e) {
+            // If unique constraint fails or already exists, try to find existing
+            owner = await Owner.findOne({ loginId: mockId });
+        }
+
+        return res.json({ success: true, visit, owner, credentials: visit.generatedCredentials });
+    } catch (err) {
+        console.error('Approve Visit Error:', err);
+        return res.status(500).json({ success: false, message: 'Server error' });
+    }
+};
+
+exports.rejectVisitPublic = async (req, res) => {
+    try {
+        const id = req.params.id;
+        const visit = await VisitReport.findById(id);
+        if (!visit) return res.status(404).json({ success: false, message: 'Visit not found' });
+        visit.status = 'rejected';
+        await visit.save();
+        return res.json({ success: true, visit });
+    } catch (err) {
+        console.error('Reject Visit Error:', err);
+        return res.status(500).json({ success: false, message: 'Server error' });
+    }
+};
