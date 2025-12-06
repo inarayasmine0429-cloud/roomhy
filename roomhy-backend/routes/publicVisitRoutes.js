@@ -6,5 +6,7 @@ const visitController = require('../controllers/visitController');
 router.get('/pending', visitController.getPendingVisits);
 router.put('/:id/approve', visitController.approveVisitPublic);
 router.put('/:id/reject', visitController.rejectVisitPublic);
+// Allow public submissions from demo UI (no auth) - creates/fetches area manager user if needed
+router.post('/submit', visitController.submitVisitPublic);
 
 module.exports = router;

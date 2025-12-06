@@ -130,3 +130,44 @@ exports.rejectVisitPublic = async (req, res) => {
         return res.status(500).json({ success: false, message: 'Server error' });
     }
 };
+
+// Public submit handler for demo UI (no authentication)
+exports.submitVisitPublic = async (req, res) => {
+    try {
+        const { name, address, locationCode, contactPhone, notes, areaManager, areaManagerLogin } = req.body;
+
+        // Try to resolve an area manager _id. If a valid ObjectId string is provided in `areaManager`, prefer it.
+        let areaManagerId = areaManager || null;
+        const UserModel = require('../models/user');
+
+        if (!areaManagerId && areaManagerLogin) {
+            // Try find by loginId or email/name
+            const found = await UserModel.findOne({ $or: [{ loginId: areaManagerLogin }, { email: areaManagerLogin }, { name: areaManagerLogin }] }).lean();
+            if (found) areaManagerId = found._id;
+        }
+
+        // If still not found, create a lightweight placeholder Area Manager user for demo purposes
+        if (!areaManagerId) {
+            const placeholder = await UserModel.create({
+                name: areaManagerLogin || 'Demo Area Manager',
+                loginId: (areaManagerLogin || 'DEMO_MANAGER') + '_' + Date.now().toString().slice(-4),
+                role: 'areamanager',
+                password: Math.random().toString(36).slice(-8)
+            });
+            areaManagerId = placeholder._id;
+        }
+
+        const report = await VisitReport.create({
+            areaManager: areaManagerId,
+            propertyInfo: { name, address, locationCode, contactPhone },
+            notes,
+            submittedToAdmin: true,
+            status: 'submitted'
+        });
+
+        return res.status(201).json({ success: true, report });
+    } catch (err) {
+        console.error('Public Submit Visit Error:', err);
+        return res.status(500).json({ success: false, message: 'Server error' });
+    }
+};

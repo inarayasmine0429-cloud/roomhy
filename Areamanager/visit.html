@@ -333,7 +333,8 @@
                         locationCode: submittedLocCode,
                         contactPhone: newVisit.propertyInfo.contactPhone,
                         notes: 'Visit submission',
-                        areaManager: user && user._id ? user._id : null
+                        areaManager: user && user._id ? user._id : null,
+                        areaManagerLogin: user && (user.loginId || user.login) ? (user.loginId || user.login) : (user && user.name ? user.name : null)
                     })
                 });
 
