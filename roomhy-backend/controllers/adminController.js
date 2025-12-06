@@ -1,8 +1,7 @@
 const VisitReport = require('../models/VisitReport');
 const Property = require('../models/Property');
 const User = require('../models/user');
-const Owner = require('../models/Owner'); // Import Owner Model
-const Notification = require('../models/Notification');
+const Owner = require('../models/Owner');
 const generateOwnerId = require('../utils/generateOwnerId');
 
 exports.approveVisit = async (req, res) => {
@@ -14,62 +13,53 @@ exports.approveVisit = async (req, res) => {
         if (visit.status === 'approved') return res.status(400).json({ success: false, message: 'Already approved' });
 
         const info = visit.propertyInfo || {};
-        const title = info.name || 'Untitled Property';
-        const locationCode = info.locationCode || 'GEN';
+        
+        // 1. Generate Credentials
+        const loginId = await generateOwnerId(info.locationCode || 'GEN');
+        const tempPassword = Math.random().toString(36).slice(-8);
 
-        // 1. Generate IDs
-        const loginId = await generateOwnerId(locationCode);
-        const tempPassword = Math.random().toString(36).slice(-8) || 'roomhy123';
-
-        // 2. Create Login User (For Auth)
+        // 2. Create User & Owner Profile
         const user = await User.create({
             name: info.ownerName || 'Owner',
             phone: info.contactPhone || '0000000000',
-            password: tempPassword, // Will be hashed by User model
+            password: tempPassword,
             role: 'owner',
             loginId: loginId,
-            locationCode: locationCode,
+            locationCode: info.locationCode,
             status: 'active'
         });
 
-        // 3. Create Owner Profile (For Dashboard Profile Data)
-        // Note: We confirm password here just for record or handle via User only.
-        // Usually, we keep profile details here.
         await Owner.create({
             loginId: loginId,
             name: info.ownerName,
             phone: info.contactPhone,
             address: info.address,
-            locationCode: locationCode,
-            credentials: { password: tempPassword, firstTime: true }, // Store temp pass reference if needed
+            locationCode: info.locationCode,
+            credentials: { password: tempPassword, firstTime: true },
             kyc: { status: 'pending' }
         });
 
-        // 4. Create Property (Inactive)
+        // 3. Create Property
         const property = await Property.create({
-            title,
-            description: visit.notes || 'Created via Visit Report',
+            title: info.name,
             address: info.address,
-            locationCode,
-            status: 'inactive', 
-            isPublished: false,
-            owner: user._id, // Link to User ID
+            locationCode: info.locationCode,
+            status: 'inactive',
+            owner: user._id,
             ownerLoginId: loginId
         });
 
-        // 5. Update Visit Report
+        // 4. Update Visit Report (Crucial step for workflow)
         visit.status = 'approved';
         visit.generatedCredentials = { loginId, tempPassword };
         visit.property = property._id;
         await visit.save();
 
-        // 6. Notifications (Optional - keep existing logic)
-        // ... (keep your existing notification code here) ...
-
-        return res.status(201).json({ 
+        return res.status(200).json({ 
             success: true, 
-            message: 'Approved & Created in MongoDB',
-            ownerCredentials: { loginId, tempPassword } 
+            message: 'Approved',
+            loginId, 
+            tempPassword 
         });
 
     } catch (err) {
@@ -82,22 +72,13 @@ exports.rejectVisit = async (req, res) => {
     try {
         const visitId = req.params.id;
         const visit = await VisitReport.findById(visitId);
+        if (!visit) return res.status(404).json({ success: false, message: 'Not found' });
         
-        if (!visit) return res.status(404).json({ success: false, message: 'Visit report not found' });
-        if (visit.status === 'rejected') return res.status(400).json({ success: false, message: 'Already rejected' });
-
-        // Update Visit Report status to rejected
         visit.status = 'rejected';
         await visit.save();
-
-        return res.status(200).json({ 
-            success: true, 
-            message: 'Visit rejected successfully',
-            visit
-        });
-
+        
+        return res.json({ success: true, message: 'Rejected' });
     } catch (err) {
-        console.error("Rejection Error:", err);
         return res.status(500).json({ success: false, message: err.message });
     }
 };
