@@ -204,7 +204,7 @@
         lucide.createIcons();
 
         // 1. Load User Profile & Data (with onboarding enforcement)
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
             const user = JSON.parse(localStorage.getItem('user') || 'null');
 
             if (!user || user.role !== 'owner') {
@@ -214,9 +214,25 @@
                 return;
             }
 
-            // Enforce onboarding: check profileFilled flag or verify required profile fields
+            // Attempt to prefer backend state to avoid race conditions after KYC/profile updates
+            let ownerRecord = null;
+            try {
+                const res = await fetch(`/api/owners/${encodeURIComponent(user.loginId)}`, { method: 'GET' });
+                if (res.ok) {
+                    const payload = await res.json();
+                    // Accept various response shapes (owner, data, or raw)
+                    ownerRecord = payload.owner || payload.data || payload;
+                } else {
+                    console.warn('Owner fetch returned', res.status);
+                }
+            } catch (err) {
+                console.warn('Owner fetch failed, falling back to localStorage', err);
+            }
+
+            // Fallback to localStorage when backend is unavailable
             const db = JSON.parse(localStorage.getItem('roomhy_owners_db') || '{}');
-            const ownerRecord = db[user.loginId] || {};
+            if (!ownerRecord) ownerRecord = db[user.loginId] || {};
+
             const profile = ownerRecord.profile || {};
             const kycStatus = ownerRecord.kyc ? ownerRecord.kyc.status : 'pending';
 
@@ -224,7 +240,7 @@
             const hasProfileFlag = ownerRecord.profileFilled === true;
             const hasProfileFields = profile.name && profile.email && profile.address;
             const profileIncomplete = !hasProfileFlag && !hasProfileFields;
-            
+
             if (profileIncomplete) {
                 console.warn('Profile incomplete, redirecting to profile setup');
                 try { window.location.href = 'ownerprofile.html'; } catch (e) { alert('Please complete your profile to continue.'); }
@@ -238,10 +254,11 @@
                 return;
             }
 
-            // Set Name (all checks passed)
-            document.getElementById('headerName').innerText = user.name;
-            document.getElementById('welcomeName').innerText = user.name;
-            document.getElementById('headerAvatar').innerText = user.name.charAt(0).toUpperCase();
+            // Set Name (prefer backend/profile name when available)
+            const displayName = (profile.name) || user.name || 'Owner';
+            document.getElementById('headerName').innerText = displayName;
+            document.getElementById('welcomeName').innerText = displayName;
+            document.getElementById('headerAvatar').innerText = displayName.charAt(0).toUpperCase();
 
             // Filter & Count Data for this Owner
             const ownerId = user.ownerId || user.loginId;
