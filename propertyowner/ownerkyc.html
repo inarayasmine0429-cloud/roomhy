@@ -20,7 +20,7 @@
                 <div class="bg-blue-600 text-white p-1.5 rounded-lg"><i data-lucide="home" class="w-5 h-5"></i></div>
                 <h1 class="text-xl font-bold text-slate-800">Roomhy Onboarding</h1>
             </div>
-            <div class="text-sm text-slate-500">Step 2 of 3: Verification</div>
+            <div class="text-sm text-slate-500">Step 2 of 2: Verification</div>
         </header>
 
         <main class="flex-1 overflow-y-auto p-6">
@@ -64,6 +64,7 @@
                                 <div id="upload-content">
                                     <i data-lucide="upload-cloud" class="w-10 h-10 mx-auto text-blue-500 mb-3"></i>
                                     <span class="text-blue-600 font-semibold text-sm block">Click to upload Aadhar Card</span>
+                                    <span class="text-xs text-gray-400 mt-1 block">(Small files only for demo)</span>
                                 </div>
                                 <div id="file-preview" class="hidden flex-col items-center">
                                     <i data-lucide="file-check" class="w-10 h-10 text-green-500 mb-2"></i>
@@ -84,96 +85,126 @@
     <script>
         lucide.createIcons();
         let base64Image = "";
+
+        // --- SAFE REDIRECT FUNCTION ---
+        // Fixes "Failed to set href" error by providing a fallback UI when direct navigation fails
+        function safeRedirect(url) {
+            try {
+                // Try standard redirect first
+                window.location.href = url;
+            } catch (e) {
+                console.warn("Automatic redirect failed, showing manual link.", e.message);
+                // Fallback UI if redirect fails (common in preview environments)
+                document.body.innerHTML = `
+                    <div class="flex flex-col items-center justify-center h-screen bg-gray-100 text-center p-4">
+                        <div class="bg-white p-8 rounded-xl shadow-lg max-w-sm w-full">
+                            <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-600"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                            </div>
+                            <h2 class="text-xl font-bold text-gray-800 mb-2">Navigation Required</h2>
+                            <p class="text-gray-600 mb-6 text-sm">We need to move you to the next page.</p>
+                            <a href="${url}" class="block w-full bg-blue-600 text-white px-4 py-3 rounded-lg font-medium hover:bg-blue-700 shadow transition">
+                                Continue to Next Step
+                            </a>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
         const user = JSON.parse(localStorage.getItem('user') || 'null');
         
-        if (!user) window.location.href = 'ownerlogin.html';
+        // Use safeRedirect instead of direct assignment
+        if (!user) {
+            safeRedirect('ownerlogin.html');
+        }
 
         // Aadhar Formatting
-        document.getElementById('aadhar-number').addEventListener('input', function (e) {
-            let value = e.target.value.replace(/\D/g, '').substring(0, 12);
-            let formattedValue = '';
-            for (let i = 0; i < value.length; i++) {
-                if (i > 0 && i % 4 === 0) formattedValue += ' ';
-                formattedValue += value[i];
-            }
-            e.target.value = formattedValue;
-        });
+        const aadharInput = document.getElementById('aadhar-number');
+        if (aadharInput) {
+            aadharInput.addEventListener('input', function (e) {
+                let value = e.target.value.replace(/\D/g, '').substring(0, 12);
+                let formattedValue = '';
+                for (let i = 0; i < value.length; i++) {
+                    if (i > 0 && i % 4 === 0) formattedValue += ' ';
+                    formattedValue += value[i];
+                }
+                e.target.value = formattedValue;
+            });
+        }
 
         // File Upload
-        document.getElementById('id-proof').addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if(file) {
-                document.getElementById('upload-content').classList.add('hidden');
-                document.getElementById('file-preview').classList.remove('hidden');
-                document.getElementById('file-preview').classList.add('flex');
-                document.getElementById('file-name').innerText = file.name;
-                const reader = new FileReader();
-                reader.onload = function(evt) { base64Image = evt.target.result; };
-                reader.readAsDataURL(file);
-            }
-        });
+        const idProofInput = document.getElementById('id-proof');
+        if (idProofInput) {
+            idProofInput.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if(file) {
+                    // Check size (limit to 500KB for localStorage safety)
+                    if (file.size > 500000) {
+                        alert("File is too large! Please upload an image smaller than 500KB for this demo.");
+                        this.value = ""; // Reset
+                        return;
+                    }
 
-        async function submitKYC() {
+                    document.getElementById('upload-content').classList.add('hidden');
+                    document.getElementById('file-preview').classList.remove('hidden');
+                    document.getElementById('file-preview').classList.add('flex');
+                    document.getElementById('file-name').innerText = file.name;
+                    const reader = new FileReader();
+                    reader.onload = function(evt) { base64Image = evt.target.result; };
+                    reader.readAsDataURL(file);
+                }
+            });
+        }
+
+        function submitKYC() {
             const aadhar = document.getElementById('aadhar-number').value.replace(/\s/g, '');
             if(aadhar.length !== 12) { alert("Invalid Aadhar Number"); return; }
             if(!base64Image) { alert("Please upload document"); return; }
 
-            const loginId = user.loginId;
-
-            // Attempt API-first: PATCH /api/owners/:loginId
             try {
-                const payload = {
-                    kyc: {
-                        status: 'submitted',
+                const db = JSON.parse(localStorage.getItem('roomhy_owners_db') || '{}');
+                
+                // SELF HEALING: Create entry if missing
+                if (user && !db[user.loginId]) {
+                    db[user.loginId] = {
+                        profile: { name: user.name || 'Owner', loginId: user.loginId },
+                        credentials: { firstTime: false }, 
+                        kyc: { status: 'pending' },
+                        profileFilled: false
+                    };
+                }
+
+                if (user) {
+                    // Update Data
+                    db[user.loginId].kyc = { 
+                        status: 'submitted', // Update status
                         aadharNumber: aadhar,
                         documentImage: base64Image,
                         submittedAt: new Date().toISOString()
-                    },
-                    profileFilled: true
-                };
-
-                const res = await fetch(`/api/owners/${encodeURIComponent(loginId)}`, {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-
-                if (res.ok) {
-                    const updated = await res.json();
-                    console.log('✅ KYC saved to MongoDB for', loginId, updated);
-
-                    // Update local cache if present
-                    const db = JSON.parse(localStorage.getItem('roomhy_owners_db') || '{}');
-                    if (!db[loginId]) db[loginId] = {};
-                    db[loginId].kyc = payload.kyc;
-                    db[loginId].profileFilled = true;
+                    };
+                    
+                    // Mark steps complete
+                    db[user.loginId].profileFilled = true;
+                    
                     localStorage.setItem('roomhy_owners_db', JSON.stringify(db));
+                    
+                    alert("🎉 KYC Submitted! Redirecting to Dashboard...");
 
-                    alert("🎉 KYC Submitted! Welcome to RoomHy Dashboard.");
-                    window.location.href = 'admin.html';
-                    return;
+                    // REDIRECT TO DASHBOARD
+                    safeRedirect('admin.html');
                 } else {
-                    console.warn('⚠️ KYC API returned', res.status);
+                    // Fallback if user session is lost during submission
+                    safeRedirect('ownerlogin.html');
                 }
-            } catch (err) {
-                console.warn('🌐 KYC API failed, falling back to localStorage:', err.message);
-            }
 
-            // Fallback: localStorage for offline/demo
-            const db = JSON.parse(localStorage.getItem('roomhy_owners_db') || '{}');
-            if(db[loginId]) {
-                db[loginId].kyc = {
-                    status: 'submitted',
-                    aadharNumber: aadhar,
-                    documentImage: base64Image,
-                    submittedAt: new Date().toISOString()
-                };
-                db[loginId].profileFilled = true;
-                localStorage.setItem('roomhy_owners_db', JSON.stringify(db));
-                alert("🎉 KYC Submitted (local fallback)! Welcome to RoomHy Dashboard.");
-                window.location.href = 'admin.html';
-            } else {
-                alert('Unable to save KYC. Please try again or contact support.');
+            } catch (e) {
+                console.error(e);
+                if (e.name === 'QuotaExceededError') {
+                    alert("Storage Error: The image is too large. Please try a smaller image.");
+                } else {
+                    alert("Unable to save KYC. Please try again.");
+                }
             }
         }
     </script>
