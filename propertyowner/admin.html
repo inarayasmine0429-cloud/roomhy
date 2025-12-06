@@ -226,7 +226,7 @@
         lucide.createIcons();
 
         // 1. Load User Profile & Data (with onboarding enforcement)
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
             const user = JSON.parse(localStorage.getItem('user') || 'null');
 
             if (!user || user.role !== 'owner') {
@@ -235,48 +235,88 @@
                 return;
             }
 
-            // Enforce onboarding: check profileFilled flag or verify required profile fields
-            const db = JSON.parse(localStorage.getItem('roomhy_owners_db') || '{}');
-            const ownerRecord = db[user.loginId] || {};
+            // Try to fetch owner record from backend first to use MongoDB Atlas as source-of-truth
+            let ownerRecord = null;
+            try {
+                const res = await fetch(`/api/owners/${encodeURIComponent(user.loginId)}`);
+                if (res.ok) {
+                    ownerRecord = await res.json();
+                } else {
+                    console.warn('Owner fetch returned', res.status);
+                }
+            } catch (err) {
+                console.warn('Owner fetch failed, will fallback to localStorage', err);
+            }
+
+            // If backend didn't return owner data, fallback to localStorage
+            if (!ownerRecord) {
+                const db = JSON.parse(localStorage.getItem('roomhy_owners_db') || '{}');
+                ownerRecord = db[user.loginId] || {};
+            }
+
             const profile = ownerRecord.profile || {};
             const kycStatus = ownerRecord.kyc ? ownerRecord.kyc.status : 'pending';
 
-            // Check if profile is marked as completed or has required fields
+            // Check profile completion
             const hasProfileFlag = ownerRecord.profileFilled === true;
             const hasProfileFields = profile.name && profile.email && profile.address;
             const profileIncomplete = !hasProfileFlag && !hasProfileFields;
-            
+
             if (profileIncomplete) {
                 console.warn('Profile incomplete, redirecting to profile setup');
                 safeRedirect('ownerprofile.html');
                 return;
             }
 
-            // If KYC not submitted/verified, redirect to KYC
             if (kycStatus !== 'submitted' && kycStatus !== 'verified') {
                 console.warn('KYC incomplete, redirecting to KYC');
                 safeRedirect('ownerkyc.html');
                 return;
             }
 
-            // Set Name (all checks passed)
-            document.getElementById('headerName').innerText = user.name;
-            document.getElementById('welcomeName').innerText = user.name;
-            document.getElementById('headerAvatar').innerText = user.name.charAt(0).toUpperCase();
+            // Show name (prefer backend profile name)
+            const displayName = (profile.name) || user.name || 'Owner';
+            document.getElementById('headerName').innerText = displayName;
+            document.getElementById('welcomeName').innerText = displayName;
+            document.getElementById('headerAvatar').innerText = displayName.charAt(0).toUpperCase();
 
-            // Filter & Count Data for this Owner
-            const ownerId = user.ownerId || user.loginId;
-            
-            // Rooms (from roomhy_rooms)
-            const allRooms = JSON.parse(localStorage.getItem('roomhy_rooms') || '[]');
-            const myRooms = allRooms.filter(r => r.ownerId === ownerId);
+            // Fetch rooms from backend (new endpoint). If unavailable, fallback to localStorage.
+            let myRooms = [];
+            try {
+                const roomsRes = await fetch(`/api/owners/${encodeURIComponent(user.loginId)}/rooms`);
+                if (roomsRes.ok) {
+                    const payload = await roomsRes.json();
+                    // payload.rooms expected
+                    myRooms = payload.rooms || [];
+                } else {
+                    console.warn('Rooms fetch returned', roomsRes.status);
+                }
+            } catch (err) {
+                console.warn('Rooms fetch failed, falling back to localStorage', err);
+            }
+
+            if (!myRooms || myRooms.length === 0) {
+                // Fallback to localStorage shape used by older code
+                try {
+                    const allRooms = JSON.parse(localStorage.getItem('roomhy_rooms') || '[]');
+                    const ownerId = user.ownerId || user.loginId;
+                    myRooms = allRooms.filter(r => r.ownerId === ownerId);
+                } catch (e) {
+                    myRooms = [];
+                }
+            }
+
+            // Update stats
             document.getElementById('statRooms').innerText = myRooms.length;
-            
-            // Tenants (Active - occupied beds)
+
+            // tenant count: backend rooms use numeric 'beds' field; localStorage used arrays.
             let tenantCount = 0;
             myRooms.forEach(r => {
-                if(r.beds) {
+                if (Array.isArray(r.beds)) {
                     tenantCount += r.beds.filter(b => b.tenant).length;
+                } else if (typeof r.beds === 'number') {
+                    // Best-effort: assume beds number approximates tenants when active
+                    tenantCount += r.beds; // approximate
                 }
             });
             document.getElementById('statTenants').innerText = tenantCount;

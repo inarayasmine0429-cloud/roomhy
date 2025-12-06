@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const Owner = require('../models/Owner');
+const Property = require('../models/Property');
+const Room = require('../models/Room');
 
 // Create new owner (from enquiry approval)
 router.post('/', async (req, res) => {
@@ -86,3 +88,23 @@ router.patch('/:loginId', async (req, res) => {
 });
 
 module.exports = router;
+
+// Get rooms for owner by loginId
+router.get('/:loginId/rooms', async (req, res) => {
+    try {
+        const loginId = req.params.loginId;
+        console.log('🔍 Fetching rooms for owner loginId:', loginId);
+
+        // Find properties owned by this owner (by ownerLoginId)
+        const properties = await Property.find({ ownerLoginId: loginId }).select('_id title');
+        const propertyIds = properties.map(p => p._id);
+
+        // Find rooms that belong to those properties
+        const rooms = await Room.find({ property: { $in: propertyIds } }).populate('property', 'title ownerLoginId');
+
+        return res.json({ properties, rooms });
+    } catch (err) {
+        console.error('❌ Error fetching owner rooms:', err.message);
+        return res.status(500).json({ error: err.message });
+    }
+});
