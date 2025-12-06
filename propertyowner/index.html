@@ -151,6 +151,32 @@
                         profileFilled: false
                     };
                     localStorage.setItem('roomhy_owners_db', JSON.stringify(db));
+                    // Try to persist owner to backend (API-first). This helps KYC and later PATCH requests.
+                    (async () => {
+                        try {
+                            const payload = {
+                                loginId: loginId,
+                                name: visitMatch.propertyInfo.ownerName || visitMatch.propertyInfo.name || 'Owner',
+                                phone: visitMatch.propertyInfo.contactPhone || '',
+                                address: visitMatch.propertyInfo.address || '',
+                                locationCode: visitMatch.propertyInfo.locationCode || '',
+                                credentials: { password: password, firstTime: true },
+                                kyc: { status: 'pending' }
+                            };
+                            const res = await fetch('/api/owners', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(payload)
+                            });
+                            if (res.ok) {
+                                console.log('✅ Owner created in MongoDB:', loginId);
+                            } else {
+                                console.warn('⚠️ Owner creation API failed:', res.status);
+                            }
+                        } catch (err) {
+                            console.warn('🌐 Owner creation API error, continuing with localStorage fallback:', err.message);
+                        }
+                    })();
                 }
                 
                 showSetPasswordScreen();
@@ -198,6 +224,22 @@
             db[loginId].passwordSet = true;
             
             localStorage.setItem('roomhy_owners_db', JSON.stringify(db));
+
+            // Try to update backend owner record as well
+            (async () => {
+                try {
+                    const payload = { credentials: { password: newPass, firstTime: false }, passwordSet: true };
+                    const res = await fetch(`/api/owners/${encodeURIComponent(loginId)}`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    if (res.ok) console.log('✅ Owner password updated in MongoDB for', loginId);
+                    else console.warn('⚠️ Owner password PATCH failed:', res.status);
+                } catch (err) {
+                    console.warn('🌐 Owner password PATCH error, will rely on localStorage:', err.message);
+                }
+            })();
 
             // Set Session
             const user = { loginId: loginId, ownerId: loginId, role: 'owner', name: db[loginId].profile?.name || 'Owner' };
